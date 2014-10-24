@@ -15,6 +15,7 @@ int MySqlDatabase::createConn(){
 		con -> setSchema(DATABASE);
 	}catch(SQLException &e) {
 		std::cout<<"ERROR :"<<e.what();
+		return 0;
 	}
 	return 1;
 }

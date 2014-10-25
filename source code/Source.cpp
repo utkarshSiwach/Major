@@ -13,11 +13,12 @@ class Teachers {
 public:
 	int id;
 	string name;
-	vector<Subjects *> subArr;
-	vector<Batches *> batchArr;
+	vector<Subjects *> allocatedSubjects,preferredSubjects;
+	vector<Batches *> allocatedBatches;
 	static int fetchRecordsFromDB();
+	static int fetchSubjectsFromDB();
+	static Teachers* findTeacher(int);
 	void display();
-
 };
 
 class Subjects {
@@ -25,6 +26,7 @@ public:
 	int id;
 	string name;
 	static int fetchRecordsFromDB();
+	static Subjects* findSubject(int);
 	void display();
 };
 
@@ -91,6 +93,44 @@ int Teachers::fetchRecordsFromDB() {
 	delete rs;
 	return 1;
 }
+
+// fetches preffered subjects from DB and fills the
+// prefferedSubjects vector of each teacher
+int Teachers::fetchSubjectsFromDB() {
+	if(teacherVector.empty()) {
+		return 0;
+	}
+	MySqlDatabase oDB;
+	if(!oDB.createConn()) {
+		return 0;
+	}
+	ResultSet *rs = oDB.execute("select * from teacherSubjects order by teacherId");
+	int teacherId,subjectId;
+	Teachers *curTeacher=teacherVector[0];
+	Subjects *subject;
+	while(rs->next()) {
+		teacherId = rs->getInt(1);
+		subjectId = rs->getInt(2);
+		if(curTeacher->id != teacherId) {
+			curTeacher = findTeacher(teacherId);
+		}
+		curTeacher->preferredSubjects.push_back(Subjects::findSubject(subjectId));
+	}
+}
+
+// finds and returns a Teachers *  from techerVector
+// whose id matches with the argument given
+// if no match is found returns NULL
+Teachers* Teachers::findTeacher(int id) {
+	int size = teacherVector.size();
+	for(int i=0;i<size;i++) {
+		if(id==teacherVector[i]->id) {
+			return teacherVector[i];
+		}
+	}
+	return NULL;	// not found
+}
+
 int Subjects::fetchRecordsFromDB() {
 	MySqlDatabase oDB;
 	if(!oDB.createConn()) {
@@ -108,6 +148,20 @@ int Subjects::fetchRecordsFromDB() {
 	delete rs;
 	return 1;
 }
+
+// finds and returns a Subjects*  from subjectVector
+// whose id matches with the argument given
+// if no match is found returns NULL
+Subjects* Subjects::findSubject(int id) {
+	int size = subjectVector.size();
+	for(int i=0;i<size;i++) {
+		if(id==subjectVector[i]->id) {
+			return subjectVector[i];
+		}
+	}
+	return NULL;	// not found
+}
+
 int Batches::fetchRecordsFromDB() {
 	MySqlDatabase oDB;
 	if(!oDB.createConn()) {
@@ -165,8 +219,8 @@ int Rooms::fetchRecordsFromDB() {
 
 void Teachers::display() {
 	cout<<"\nTeacher id:"<<id<<" name:"<<name;	
-	if(!subArr.empty())//subArr->display();
-	if(!batchArr.empty())//batchArr->display();
+	if(!allocatedSubjects.empty())//subArr->display();
+	if(!allocatedBatches.empty())//batchArr->display();
 	cout<<endl;
 }
 void Subjects::display() {

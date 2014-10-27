@@ -1,0 +1,52 @@
+
+// combined (batch) should only be 0 for no and 1 for yes
+create table batches (
+	id integer primary key,
+	name varchar(20),
+	combined integer default 0
+);
+
+insert into batches values(1,'b1'),(2,'b2'),(3,'a1');
+insert into batches values(4,'b3',0),(5,'b1-b3',1);
+
+create table subjects (
+	id integer primary key,
+	name varchar(100),
+	year integer,
+	branch varchar(40)
+);
+
+create table students (
+	id integer primary key,
+	name varchar(40),
+	batchId integer,
+	constraint fk_batchId foreign key (batchId) references batches (id)
+);
+
+create table batchSubjects (
+	batchId	integer,
+	subjectId	integer,
+	constraint fk_batchIdBS foreign key (batchId) references batches (id),
+	constraint fk_subjectIdBS foreign key (subjectId) references subjects (id)
+);
+insert into batchSubjects values (1,1),(1,2),(2,2);
+
+create table rooms (
+	id integer primary key,
+	name varchar(20),
+	capacity integer,
+	type integer
+);
+
+create table teachers (
+	id integer primary key,
+	name varchar(40),
+	dept varchar(40)
+);
+
+create table teacherSubjects (
+	teacherId integer,
+	subjectId integer,
+	foreign key (teacherId) references teachers (id),
+	foreign key (subjectId) references subjects (id)
+);

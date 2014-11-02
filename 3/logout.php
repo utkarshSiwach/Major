@@ -8,6 +8,8 @@ session_destroy();
 
 <html>
 <body>
-<p>You have successfully logged out</p>
+<script>
+window.location.assign("./index.php");
+</script>
 </body>
 </html>

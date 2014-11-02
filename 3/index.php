@@ -22,8 +22,7 @@ elseif(!$_POST['remember']) {
 <?php
 if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && isset($_POST["p"]) && ( isset($_POST["e"]) || isset($_POST["phone"])) && isset($_POST['d'])){
 	
-	include_once("db_conx.php");
-	//include_once("tables.php");
+	include_once("db_conx.php");	
 	
 	$f = preg_replace('#[^a-z]#i', '', $_POST['f']);
 	$l = preg_replace('#[^a-z]#i', '', $_POST['l']);
@@ -98,14 +97,12 @@ if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && isset($_POS
 			$query = mysqli_query($con, $sql);
 			echo "success";
 			exit();
-
 }
 ?>
 
 <?php
 if (isset($_POST['username']) && isset($_POST['password'])) {
 	include_once("db_conx.php");
-	include_once("tables.php");
 	$u = $_POST["username"];
 	$p1 = $_POST["password"];
 	$p = md5($p1);
@@ -372,6 +369,7 @@ function login(){
             <input class="form-control input-lg" id="email"  placeholder="Your Email" type="email" onFocus="emptyElement('status')" onKeyUp="restrict('email')" maxlength="60"/>
 			<center><h4>OR</h4></center>
 			<input class="form-control input-lg" id="phon" placeholder="Your Phone" type="text" onFocus="emptyElement('status')" maxlength="20" />
+			<h5></h5>
 			<input class="form-control input-lg" id="pass1"  placeholder="Password" type="password" onFocus="emptyElement('status')" maxlength="20" pattern=".{6,20}" required title="6-20 characters required!"/>
 		   <input class="form-control input-lg" id="pass2"  placeholder="Re-enter Password" type="password" onFocus="emptyElement('status')" maxlength="20" pattern=".{6,20}" required title="6-20 characters required!"/>
             

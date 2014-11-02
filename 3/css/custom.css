@@ -83,6 +83,50 @@ legend a{
   background-image: linear-gradient(to bottom, #79bc64, #5e7056);
   text-decoration: none;
 }
+.newsButtons {
+	-moz-box-shadow:inset 0px 0px 0px 0px #ffffff;
+	-webkit-box-shadow:inset 0px 0px 0px 0px #ffffff;
+	box-shadow:inset 0px 0px 0px 0px #ffffff;
+	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #b3b1b3), color-stop(1, #dfdfdf) );
+	background:-moz-linear-gradient( center top, #b3b1b3 5%, #dfdfdf 100% );
+	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#b3b1b3', endColorstr='#dfdfdf');
+	background-color:#b3b1b3;
+	-webkit-border-top-left-radius:0px;
+	-moz-border-radius-topleft:0px;
+	border-top-left-radius:0px;
+	-webkit-border-top-right-radius:0px;
+	-moz-border-radius-topright:0px;
+	border-top-right-radius:0px;
+	-webkit-border-bottom-right-radius:0px;
+	-moz-border-radius-bottomright:0px;
+	border-bottom-right-radius:0px;
+	-webkit-border-bottom-left-radius:0px;
+	-moz-border-radius-bottomleft:0px;
+	border-bottom-left-radius:0px;
+	text-indent:0;
+	border:1px solid #6e5c6e;
+	display:inline-block;
+	color:#050505;
+	font-family:Trebuchet MS;
+	font-size:15px;
+	font-weight:normal;
+	font-style:italic;
+	height:21px;
+	line-height:21px;
+	width:102px;
+	text-decoration:none;
+	text-align:center;
+	text-shadow:0px 0px 0px #0f0e0f;
+}
+.newsButtons:hover {
+	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #dfdfdf), color-stop(1, #b3b1b3) );
+	background:-moz-linear-gradient( center top, #dfdfdf 5%, #b3b1b3 100% );
+	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#dfdfdf', endColorstr='#b3b1b3');
+	background-color:#dfdfdf;
+}.newsButtons:active {
+	position:relative;
+	top:1px;
+}
 .navbar-default .navbar-brand{
 		color:#fff;
 		font-size:30px;

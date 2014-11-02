@@ -46,7 +46,7 @@ include_once("db_conx.php");
 	$bname = $_POST['bname'];
 	$year = $_POST['year'];
 	
-	$query = "UPDATE BATCH SET Subject='$subject', Type='$btype' WHERE Name = '$bname' AND Year='$year'";
+	$query = "UPDATE BATCH SET Type='$btype' WHERE Name = '$bname' AND Year='$year'";
 	$result = mysqli_query($con, $query) or die(mysqli_error($con));
 	if ($result) {
 	echo "Success!";
@@ -77,15 +77,40 @@ if (isset ($_POST['sid'])) {
 	//echo "<form id='param-main' onsubmit = 'return false;'>";
 	
 	$sid = $_POST['sid'];
-	if ($sid == "all") $query = "SELECT * FROM BATCH";
-	else $query = "SELECT * FROM BATCH where year='$sid'";
+	if ($sid == "all") {
+		$query = " select BID,Name,Type,Year from batch";
+	}
+	else $query = "select BID,Name,Type,Year from batch where Year='$sid'";
 	$results=mysqli_query($con,$query) or die(mysqli_error($con));
 	
 	if ($results) {
 	
-	echo "<table id='param-table' align='center' style=' border: 1px solid black;'><tr style=' border: 1px solid black; padding: 15px'><td style=' border: 1px solid black; padding: 15px;'>Batch Name</td><td style=' border: 1px solid black;  padding: 15px;'>Type</td><td style='  padding: 15px; border: 1px solid black;'>Subjects</td><td style='  padding: 15px; border: 1px solid black;'>Year</td> <td style='  padding: 15px; border: 1px solid black;'>Edit Batch</td><tr>";
-	while ($row_users = mysqli_fetch_array($results)) {
-		echo "<form onSubmit='return false;' method='POST' style='float:left;'><tr style=' border: 1px solid black;  padding: 15px;'><td style=' border: 1px solid black;  padding: 15px;'>".$row_users['Name']."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='btype' type='text'  maxlength='50' value='".$row_users['Type']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='subject' type='text'  maxlength='50' value='".$row_users['Subject']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>".$row_users['Year']."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<button onclick='editParam(\"" . $row_users['Name'] . "\",\"" . $row_users['Year'] . "\", this)'>Edit</button>"."</td></form></tr>";
+	echo "<table id='param-table' align='center' style=' border: 1px solid black;'>".
+			"<tr style=' border: 1px solid black; padding: 15px'>".
+				"<td style=' border: 1px solid black; padding: 15px;'>Batch Name</td>".
+				"<td style=' border: 1px solid black;  padding: 15px;'>Type</td>".
+				"<td style='  padding: 15px; border: 1px solid black;'>Subjects</td>".
+				"<td style='  padding: 15px; border: 1px solid black;'>Year</td>".
+				"<td style='  padding: 15px; border: 1px solid black;'>Edit Batch</td>".
+			"</tr>";
+		
+	while ($prev_row = mysqli_fetch_array($results)) {
+		echo "<tr style=' border: 1px solid black;  padding: 15px;'>".
+			"<form onSubmit='return false;' method='POST' style='float:left;'>".
+				"<td style=' border: 1px solid black;  padding: 15px;'>".$prev_row['Name']."</td>".
+				"<td style=' border: 1px solid black;  padding: 15px;'>".
+					"<input name='btype' type='text'  maxlength='50' value='".$prev_row['Type']."'>".
+				"</td>".
+				"<td style=' border: 1px solid black;  padding: 15px;'>".
+					"<button onclick='viewSubjects($prev_row[BID])'>View Subjects</button>".
+					"<button onclick='addSubjects($prev_row[BID])'>Add Subjects</button>".
+				"</td>".
+				"<td style=' border: 1px solid black;  padding: 15px;'>".$prev_row['Year']."</td>".
+				"<td style=' border: 1px solid black;  padding: 15px;'>".
+					"<button onclick='editParam(\"" . $prev_row['Name'] . "\",\"" . $prev_row['Year'] . "\", this)'>Edit</button>".
+				"</td>".
+			"</form>".
+		"</tr>";
 	}
 	echo "</table>";
 	}
@@ -184,6 +209,19 @@ function editParam(bname, year, button) {
 	
 	
     
+}
+
+function viewSubjects(bid) {
+	$.ajax({
+		url:"specialViewSubjects.php?BID="+bid,
+		success:function(data) {
+			alert(data);
+		}
+	});
+}
+
+function addSubjects(bid) {
+
 }
 
 </script>

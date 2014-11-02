@@ -5,10 +5,10 @@ session_start();
 
 
 <?php
+////////////////////  if user is logged in update database with users ip address ///////////////
 if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && ( isset($_POST["e"]) || isset($_POST["phone"]))){
 
 	include_once("db_conx.php");
-	include_once("tables.php");
 	$f = preg_replace('#[^a-z]#i', '', $_POST['f']);
 	$l = preg_replace('#[^a-z]#i', '', $_POST['l']);
 	$g = preg_replace('#[^a-z]#', '', $_POST['g']);
@@ -46,12 +46,15 @@ if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && ( isset($_P
 	echo "Success!";
 	exit();
 }
+////////// end /////////
 ?>
 
 
 <html>
 <script src="js/ajax.js"></script>
+<script src="./js/jquery.js"></script>
 <script src="js/main.js"></script>
+<link rel="stylesheet" type="text/css" href="./css/custom.css">
 <script>
 function restrict(elem){ //runs for checking the email id and username
 	var tf = _(elem);
@@ -67,9 +70,7 @@ function restrict(elem){ //runs for checking the email id and username
 function emptyElement(x){
 	_(x).innerHTML = "";
 }
-</script>
 
-<script>
 function update_profile(){
 	var f = _("fname").value;
 	var l = _("lname").value;
@@ -106,71 +107,126 @@ function update_profile(){
 	}
 }
 
+function showRooms() {
+	$.ajax({
+		url:"room.php",
+		success: function(data) {
+			$("#myDiv").html(data);
+		}
+	});
+}
+function showBatches() {
+	$.ajax({
+		url:"batch.php",
+		success: function(data) {
+			$("#myDiv").html(data);
+		}
+	});
+
+}
+function showSubjects() {
+	$.ajax({
+		url:"subjects.php",
+		success: function(data) {
+			$("#myDiv").html(data);
+		}
+	});
+
+}
+function showProfile() {
+	$("#myDiv").html('');
+	$("#userDetailsDiv").toggle();
+}
+function startProcessing() {
+
+}
 </script>
 
-<script>
-</script>
 
 <body background= "bg.png">
+
 <div style="background:#00b300; height: 100px; width: 100%">
-<span id="name" style="float:left">
-	<?php if (($_SESSION['SESS_FIRST_NAME']!="") && ($_SESSION['SESS_LAST_NAME']!="" )) {
-				
+	<span id="name" style="float:left">
+		<?php if (($_SESSION['SESS_FIRST_NAME']!="") && ($_SESSION['SESS_LAST_NAME']!="" )) {
 				echo "<b>";
 				echo $_SESSION['SESS_FIRST_NAME']." ".$_SESSION['SESS_LAST_NAME'];
 				echo "</b>";
 			}	
-				else echo "User's Name";
-	?>
-</span>
+			else echo "User's Name";
+		?>
+	</span>
 
-<center>
-
-<span id="mail" style="float:right">
-<?php if (($_SESSION['SESS_EMAIL'])!="") {
+	<span id="mail" style="float:right">
+		<?php if (($_SESSION['SESS_EMAIL'])!="") {
 				echo "<b>";
 				echo $_SESSION['SESS_EMAIL']." ";
 				echo "</b>";
 			}		
 			else echo "User's Email/Phone ";
-?>
-<a href="logout.php">Logout</a>
-</span></div>
+		?>
+		<a href="logout.php">Logout</a>
+	</span>
+</div>
 
-
-<center>
+<!-- left column for user options -->
+<div style="width:200px;height:550px; background-color:lightslategrey;">
+	<span onclick="showRooms()" class="newsButtons" 
+		style="width:170px;height:25px; margin:16px;">
+		Rooms
+	</span></br>
+	<span onclick="showSubjects()" class="newsButtons" 
+		style="width:170px;height:25px; margin:16px;">
+		Subjects
+	</span></br>
+	<span onclick="showBatches()" class="newsButtons" 
+		style="width:170px;height:25px; margin:16px;">
+		Batches
+	</span></br>
+	<span onclick="showProfile()" class="newsButtons" 
+		style="width:170px;height:25px; margin:16px;">
+		Edit Profile
+	</span></br>
+		<span onclick="startProcessing()" class="newsButtons" 
+		style="width:170px;height:25px; margin:16px;">
+		Create Time table
+	</span></br>
+</div>
+<div id="myDiv" style="position:absolute;left:220px;top:120px;"></div>
 <?php
-include_once("db_conx.php");
-$user = $_SESSION['SESS_EMAIL'];
-if(is_numeric($user)) {
-$query = "SELECT * FROM USERS WHERE Phone = '$user'";
-}
-else {$query = "SELECT * FROM USERS WHERE Email = '$user'";}
-$result = mysqli_query($con, $query) or die(mysqli_error($con));
-echo "<form id='user-profile' onSubmit='return false;'>";
-if($result){
-	$info = mysqli_fetch_assoc($result);
-	echo"<h2>Basic Information</h2>";
-	echo "<div>First Name: </div>";
-	echo "<input id='fname' type='text' onKeyUp='restrict('fname')' maxlength='20' value='".$info['FName']."'>";
-	echo "<div>Last Name: </div>";
-    echo "<input id='lname' type='text'  onKeyUp='restrict('lname')' maxlength='20' value='".$info['LName']."'>";
-    echo "<div>Email Address:</div>";
-    echo "<input id='email' type='text'  onKeyUp='restrict('email')' maxlength='60' value='".$info['Email']."'>";
-	echo "<br><br>OR<br><br>";
-	echo" <div>Phone Number: </div>";
-    echo" <input id='phon' type='text'  maxlength='20' value='".$info['Phone']."'>";
-    echo "<div>Gender:</div>";
-    echo "<select id='gender'>";
-	echo "<option value=''></option>";
-	echo "<option value='m'>Male</option>";
-	echo "<option value='f'>Female</option></select>";
-    echo "<br><br>";
-	echo" <div>Department: </div>";
-    echo" <input id='phon' type='text'  maxlength='20' value='".$info['Department']."'>";
-    
+	/////////////////  edit user profile page ///////////////
+	/////////////////////////////////////////////////////////
+	include_once("db_conx.php");
+	$user = $_SESSION['SESS_EMAIL'];
+	if(is_numeric($user)) {
+		$query = "SELECT * FROM USERS WHERE Phone = '$user'";
+	}
+	else {$query = "SELECT * FROM USERS WHERE Email = '$user'";}
+	$result = mysqli_query($con, $query) or die(mysqli_error($con));
+	echo"<div id='userDetailsDiv' style=' display:none;".
+		"position:absolute;left:250px;top:130px;'><center>";
+	echo "<form id='user-profile' onSubmit='return false;'>";
+	if($result){
+		$info = mysqli_fetch_assoc($result);		
+		echo"<h2>Basic Information</h2>";
+		echo "<div>First Name: </div>";
+		echo "<input id='fname' type='text' onKeyUp='restrict('fname')' maxlength='20' value='".$info['FName']."'>";
+		echo "<div>Last Name: </div>";
+		echo "<input id='lname' type='text'  onKeyUp='restrict('lname')' maxlength='20' value='".$info['LName']."'>";
+		echo "<div>Email Address:</div>";
+		echo "<input id='email' type='text'  onKeyUp='restrict('email')' maxlength='60' value='".$info['Email']."'>";
+		echo "<br><br>OR<br><br>";
+		echo" <div>Phone Number: </div>";
+		echo" <input id='phon' type='text'  maxlength='20' value='".$info['Phone']."'>";
+		echo "<div>Gender:</div>";
+		echo "<select id='gender'>";
+		echo "<option value=''></option>";
+		echo "<option value='m'>Male</option>";
+		echo "<option value='f'>Female</option></select>";
+		echo "<br><br>";
+		echo" <div>Department: </div>";
+		echo" <input id='phon' type='text'  maxlength='20' value='".$info['Department']."'>";
 	
-}
+	}
 
 	echo "<div>Subject List </div>"; // on change should generate 5 inputs for preference of subjects
 	echo "<select name='branch' id='branch'>
@@ -183,11 +239,10 @@ if($result){
 		   <option value='biotech'>Biotech</option>
 		   </select><br><br>";
 
-	
-
-echo "<button id='signupbtn' onClick='update_profile()' style='background-color:#000; color: white; padding: 9px 15px'>Save Changes</button><br>";
-echo"<span id='status' style='color: red'></span> ";
-echo "</form>";
+	echo "<button id='signupbtn' onClick='update_profile()' style='background-color:#000; color: white; padding: 9px 15px'>Save Changes</button><br>";
+	echo"<span id='status' style='color: red'></span> ";
+	echo "</form>";
+	echo"</center></div>";
 ?>
 
 </body>

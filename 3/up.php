@@ -34,11 +34,11 @@ if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && ( isset($_P
 	//obtain uid to insert into userprofile
 	$u = $_SESSION['SESS_EMAIL'];
 	if (is_numeric($u)) {
-		$query = "UPDATE USERS SET FName='$f', LName='$l', Gender='$g', ModifiedIP = '$ipaddress' WHERE phone='$u'";
+		$query = "UPDATE users SET FName='$f', LName='$l', Gender='$g', ModifiedIP = '$ipaddress' WHERE phone='$u'";
 		//$query1 = "SELECT UserID FROM USERS WHERE phone='$u'";
 	}
 	else {
-		$query = "UPDATE USERS SET FName='$f', LName='$l', Gender='$g', ModifiedIP = '$ipaddress' WHERE email='$u'";
+		$query = "UPDATE users SET FName='$f', LName='$l', Gender='$g', ModifiedIP = '$ipaddress' WHERE email='$u'";
 		//$query1 = "SELECT UserID FROM USERS WHERE email='$u'";
 	}
 	
@@ -198,9 +198,9 @@ function startProcessing() {
 	include_once("db_conx.php");
 	$user = $_SESSION['SESS_EMAIL'];
 	if(is_numeric($user)) {
-		$query = "SELECT * FROM USERS WHERE Phone = '$user'";
+		$query = "SELECT * FROM users WHERE Phone = '$user'";
 	}
-	else {$query = "SELECT * FROM USERS WHERE Email = '$user'";}
+	else {$query = "SELECT * FROM users WHERE Email = '$user'";}
 	$result = mysqli_query($con, $query) or die(mysqli_error($con));
 	echo"<div id='userDetailsDiv' style=' display:none;".
 		"position:absolute;left:250px;top:130px;'><center>";

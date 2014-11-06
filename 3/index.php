@@ -40,11 +40,10 @@ if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && isset($_POS
 		 if ($e_check!= 0){ 
 			echo "That email address is already in use in the system";
 			exit();
-		 }  
-		  goto a;
+		 }
 		}
 		
-		if ($_POST["phone"]!=""){
+		else if ($_POST["phone"]!=""){
 		 $e = mysqli_real_escape_string($con, $_POST['phone']); 
 		 $sql1 = "SELECT * FROM users WHERE phone='$e' LIMIT 1";
 		 $query = mysqli_query($con, $sql1); 
@@ -52,12 +51,11 @@ if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && isset($_POS
 		 if ($e_check!= 0){ 
 			echo "That phone number is already in use in the system";
 			exit();
-		 } 
-		  goto a;
+		 }
 		}
 
 	
-	a:	//IP address retrieval
+	//IP address retrieval
 			$ipaddress = '';
     if (getenv('HTTP_CLIENT_IP'))
         $ipaddress = getenv('HTTP_CLIENT_IP');
@@ -84,10 +82,10 @@ if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && isset($_POS
 			$query2 = mysqli_query($con, $sql3); 
 			
 			if ($phone == "") {
-				$sql = "SELECT * FROM USERS WHERE Email = '$e'";
+				$sql = "SELECT * FROM users WHERE Email = '$e'";
 			}
 			else {
-				$sql = "SELECT * FROM USERS WHERE Phone = '$phone'";
+				$sql = "SELECT * FROM users WHERE Phone = '$phone'";
 			}
 			$query = mysqli_query($con, $sql);
 			$result = mysqli_fetch_assoc($query);
@@ -97,6 +95,7 @@ if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && isset($_POS
 			$query = mysqli_query($con, $sql);
 			echo "success";
 			exit();
+
 }
 ?>
 

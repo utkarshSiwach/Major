@@ -1,14 +1,5 @@
---
+
 -- Database: `timetable`
---
-CREATE DATABASE IF NOT EXISTS `timetable` DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci;
-USE `timetable`;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `batch`
---
 
 CREATE TABLE IF NOT EXISTS `batch` (
   `BID` int(11) NOT NULL AUTO_INCREMENT,
@@ -114,4 +105,18 @@ create table batchSubjects (
 	constraint fk_subjectIdBS foreign key (subjectId) references subjects (sid)
 );
  insert into batchSubjects values(1,2),(1,3),(1,4),(5,1),(5,5),(1,1);
+ 
+ create table teachers (
+	id integer primary key,
+	name varchar(40),
+	dept varchar(40)
+);
+
+create table teacherSubjects (
+	teacherId integer,
+	preference integer,
+	subjectId integer,	
+	foreign key (teacherId) references teachers (id),
+	foreign key (subjectId) references subjects (sid)
+);
  

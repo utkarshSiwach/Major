@@ -6,8 +6,8 @@ session_start();
 <?php
  if (isset($_POST["choice"])) {
 	include_once("db_conx.php");
-	$choice = mysql_real_escape_string($_POST['choice']);
-	
+	//$choice = mysql_real_escape_string($_POST['choice']);
+	$choice=$_POST['choice'];
 	$query = "SELECT * FROM subjects WHERE Year='$choice'";
 	$result = mysqli_query($con, $query) or die(mysqli_error($con));
 	if ($result) {
@@ -41,7 +41,7 @@ if (isset($_POST['bname']) && isset($_POST['btype']) && isset($_POST['subject'])
 	$subject = $_POST['subject'];
 	$year = $_POST['year'];
 
-		$query="INSERT INTO batch (name, type, subject, year) VALUES ('$bname', '$btype', '$subject', '$year')";
+		$query="INSERT INTO batch (name, type, year) VALUES ('$bname', '$btype','$year')";
 		$result = mysqli_query($con, $query) or die (mysqli_error($con));		
 	
 	if ($result) {

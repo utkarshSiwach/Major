@@ -1,5 +1,6 @@
 #include<iostream>
 #include<string>
+#include<unordered_map>
 #include "MySqlCon.h"
 
 using namespace std;
@@ -13,10 +14,15 @@ class Teachers {
 public:
 	int id;
 	string name;
-	vector<Subjects *> allocatedSubjects,preferredSubjects;
+	string dept;
+	int hrsCurrentlyTeaching;
+	// in prefferedSubjects first one is most preferred,last one - least
+	vector<Subjects *> allocatedSubjects,preferredSubjects;	
 	vector<Batches *> allocatedBatches;
+	static int const maxTeachingHours = 16;
 	static int fetchRecordsFromDB();
 	static int fetchSubjectsFromDB();
+	static int assignSubjects();
 	static Teachers* findTeacher(int);
 	void display();
 };
@@ -25,6 +31,21 @@ class Subjects {
 public:
 	int id;
 	string name;
+	string type;
+	string year;
+	int hours;
+	string branch;
+
+	// will be incremented by Batches::fetchSubjectsFromDB()
+	int numOfBatchesTakingIt;
+
+	static const int maxPreferencesAllowed = 5;
+
+	// onordered map from (subjectId -> isAllocated) to check if a 
+	// subject has been allocated to a teacher
+	// 0 for not allocated, 1 - allocated
+	// Used be Teachers::assignSubjects(), init. by Subjects::fetchRecordsFromDB()
+	static unordered_map<int,int> subjectsAllocated;
 	static int fetchRecordsFromDB();
 	static Subjects* findSubject(int);
 	void display();
@@ -32,14 +53,16 @@ public:
 
 class Batches {
 public:
-	int id;
+	vector<int> id;
 	string name;
-	bool isCombined;
+	string type;
+	string sem;
 	vector<Students *> studentArr;
 	vector<Subjects *> subjectArr;
 	void display();
 	static int fetchRecordsFromDB();
 	static int fetchSubjectsFromDB();
+	static int groupBatchesForLectures();
 	static Batches* findBatch(int);
 };
 
@@ -57,7 +80,7 @@ public:
 	int id;
 	string name;
 	int capacity;
-	int type;
+	string type;
 	void display();
 	static int fetchRecordsFromDB();
 };
@@ -111,13 +134,13 @@ int Teachers::fetchSubjectsFromDB() {
 	if(!oDB.createConn()) {
 		return 0;
 	}
-	ResultSet *rs = oDB.execute("select * from teacherSubjects order by teacherId");
+	ResultSet *rs = oDB.execute("select * from teacherSubjects order by teacherId,preference");
 	int teacherId,subjectId;
 	Teachers *curTeacher=teacherVector[0];
 	Subjects *subject=subjectVector[0];
 	while(rs->next()) {
 		teacherId = rs->getInt(1);
-		subjectId = rs->getInt(2);
+		subjectId = rs->getInt(3);
 		if(curTeacher->id != teacherId) {
 			curTeacher = findTeacher(teacherId);
 		}
@@ -139,6 +162,51 @@ Teachers* Teachers::findTeacher(int id) {
 	}
 	return NULL;	// not found
 }
+
+// fills the allocatedSubjects vector of teachers
+// by looking up preferredSubjects of each teacher
+// allocating the first preferences of each teacher if not already taken.
+// Also assigns tutorials of that subject, if available.
+// Then moves on to second preferences of every teacher and so on..
+int Teachers::assignSubjects() {
+	
+	int i=0;
+	for(int prefNum=0;prefNum < Subjects::maxPreferencesAllowed; prefNum++) {
+		Subjects * tempSub;
+		for(Teachers * teacher : teacherVector) {
+			if(prefNum>=teacher->preferredSubjects.size()) {
+				break;
+			}
+			else {	// there are prefereed subjects left for this teacher
+				tempSub=teacher->preferredSubjects[i];
+				if(Subjects::subjectsAllocated[tempSub->id]==0 && 
+				 teacher->hrsCurrentlyTeaching < Teachers::maxTeachingHours) {
+					Subjects::subjectsAllocated[tempSub->id]=1;
+					teacher->hrsCurrentlyTeaching+=tempSub->hours;
+					teacher->allocatedSubjects.push_back(tempSub);
+				}
+				// now try to assign the respective tut
+				if(tempSub->type=="lecture" && Subjects::subjectsAllocated[tempSub->id+1]==0 && 
+				 teacher->hrsCurrentlyTeaching < Teachers::maxTeachingHours) {
+					Subjects::subjectsAllocated[tempSub->id]=1;
+					teacher->hrsCurrentlyTeaching+=tempSub->hours;
+					teacher->allocatedSubjects.push_back(tempSub);
+				}
+			}
+		}
+	}
+
+	// now try to allocate unallocated subjects
+
+	for( auto it = Subjects::subjectsAllocated.begin(); it!=Subjects::subjectsAllocated.end();it++) {
+		if(it->second!=1) { // allocate it
+			
+		}
+	}
+
+
+}
+
 ////////////
 
 int Subjects::fetchRecordsFromDB() {
@@ -151,9 +219,32 @@ int Subjects::fetchRecordsFromDB() {
 	Subjects *temp;	
 	while(rs->next()) {
 		temp= new Subjects();
-		temp->id = rs->getInt(1);
-		temp->name = rs->getString(2);
-		subjectVector.push_back(temp);
+        temp->id = rs->getInt(1);
+        temp->name = rs->getString(2);
+        temp->year = rs->getString(5);
+        temp->branch = rs->getString(7);
+        temp->type = rs->getString(3);
+        temp->hours = rs->getInt(6);
+        /*
+		// won't be needed once database entries of subjects are corrected
+		if (temp->type.compare("lect+tut") == 0) { //split lect+tut into lect, tut
+			temp->type.assign("lecture"); 
+            Subjects *node;
+            node= new Subjects();
+            node->id = temp->id;
+            node->name.assign(temp->name);
+            node->type.assign("tut");
+            temp->hours = temp->hours - 1; 
+            node->hours = 1;
+            node->year.assign(temp->year);
+            node->branch.assign(temp->branch);
+            subjectVector.push_back(node);
+        }
+		*/
+        subjectVector.push_back(temp);
+
+		// now mark the subject as unallocated
+		subjectsAllocated[temp->id]=0;
 	}
 	delete rs;
 	return 1;
@@ -180,14 +271,15 @@ int Batches::fetchRecordsFromDB() {
 	if(!oDB.createConn()) {
 		return 0;
 	}
-	ResultSet *rs = oDB.execute("select * from batches");
+	ResultSet *rs = oDB.execute("select * from batch");
 	int n = rs->rowsCount();
 	Batches *temp;	
 	while(rs->next()) {
 		temp= new Batches();
-		temp->id = rs->getInt(1);
+		temp->id.push_back(rs->getInt(1));
 		temp->name = rs->getString(2);
-		temp->isCombined = (bool)rs->getInt(3);
+		temp->type = rs->getString(3);
+		temp->sem = rs->getString(4);
 		batchVector.push_back(temp);
 	}
 	delete rs;
@@ -196,7 +288,9 @@ int Batches::fetchRecordsFromDB() {
 
 // fills the subjectArr vector of each batch by looking
 // up the common subjects of each of its students(in that batch)
-// the backlog subjeccts are not added to the vector
+// the backlog subjects are not added to the vector
+// also increments the respective subject object's numOfBatchesTakingIt by 1
+// every time a subject is added to the batch's list
 // both functions Batches::fetchRecordsFromDB() and Subjects::fetchRecordsFromDB()
 // must be called before this function
 int Batches::fetchSubjectsFromDB() {
@@ -211,16 +305,27 @@ int Batches::fetchSubjectsFromDB() {
 	while(rs->next()) {
 		batchId = rs->getInt(1);
 		subjectId = rs->getInt(2);
-		if(batchId != batch->id) {
+		if(batchId != batch->id[0]) {
 			batch = findBatch(batchId);
 		}
 		if(subjectId != subject->id) {
 			subject=Subjects::findSubject(subjectId);
 		}
+		subject->numOfBatchesTakingIt++;	// validate this
 		batch->subjectArr.push_back(subject);
 	}
 	delete rs;
 	return 1;
+}
+
+// groups the individual batches into combined ones
+// static grouping is being performed with no optimization yet, just make groups of 3
+// creates a new Batch object with id vector having ids of all constituent batches
+// lecture subjects from individual batches are removed from that batch's subject
+// list vector and added to the combined batch's subjectList vector
+// also updates the numOfBatchesTakingIt integer of Subject objects
+int Batches::groupBatchesForLectures() {
+
 }
 
 // finds and returns a Batches*  from batchVector
@@ -270,7 +375,7 @@ int Rooms::fetchRecordsFromDB() {
 	if(!oDB.createConn()) {
 		return 0;
 	}
-	ResultSet *rs = oDB.execute("select * from rooms");
+	ResultSet *rs = oDB.execute("select * from room");
 	int n = rs->rowsCount();
 	Rooms * room;
 	while(rs->next()) {
@@ -278,7 +383,7 @@ int Rooms::fetchRecordsFromDB() {
 		room->id = rs->getInt(1);
 		room->name = rs->getString(2);
 		room->capacity = rs->getInt(3);
-		room->type = rs->getInt(4);
+		room->type = rs->getString(4);
 		roomVector.push_back(room);
 	}
 	delete rs;
@@ -296,7 +401,7 @@ void Subjects::display() {
 	cout<<"\nSubject id: "<<id<<" name: "<<name;
 }
 void Batches::display() {
-	cout<<"\nBatch id:"<<id<<" stu arr len :"<<studentArr.size()<<" sub arr len :"<<subjectArr.size();
+	cout<<"\nBatch id:"<<id[0]<<" stu arr len :"<<studentArr.size()<<" sub arr len :"<<subjectArr.size();
 	//studentArr->display();
 }
 void Students::display() {

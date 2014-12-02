@@ -1,20 +1,20 @@
-<?php
+	<?php
 session_start();
 ?>
 
 
 <?php
- if (isset($_POST['sname']) && isset($_POST['type']) && isset($_POST['scode']) && isset($_POST['year']) && isset ($_POST['branch']) && isset($_POST['shours'])) {
+ if (isset($_POST['sname']) && isset($_POST['type']) && isset($_POST['scode']) && isset($_POST['Sem']) && isset ($_POST['branch']) && isset($_POST['shours'])) {
 	include_once("db_conx.php");
 	$name = mysqli_real_escape_string($con, $_POST['sname']);
 	$type = mysqli_real_escape_string($con, $_POST['type']);
 	$scode = mysqli_real_escape_string($con, $_POST['scode']);
-	$year = mysqli_real_escape_string($con, $_POST['year']);
+	$Sem = mysqli_real_escape_string($con, $_POST['Sem']);
 	$branch = mysqli_real_escape_string($con, $_POST['branch']);
 	$hours = mysqli_real_escape_string($con, $_POST['shours']);
-	//echo $name, $type, $scode, $year;
+	//echo $name, $type, $scode, $Sem;
 	
-	$query = "INSERT INTO subjects(Sname,Type,Scode,Year,Hours, Branch) VALUES ('$name', '$type', '$scode', '$year', '$hours', '$branch')";
+	$query = "INSERT INTO subjects(Sname,Type,Scode,Sem,Hours, Branch) VALUES ('$name', '$type', '$scode', '$Sem', '$hours', '$branch')";
 	
 	$result = mysqli_query($con, $query) or die(mysqli_error($con));
 	if ($result) {
@@ -35,12 +35,12 @@ session_start();
 	var shours = document.getElementById("shours").value;
 	var branch = document.getElementById("branch").value;
 	var scode = document.getElementById("scode").value;
-	var year = document.getElementById("year").value;
+	var Sem = document.getElementById("Sem").value;
 	var status = document.getElementById("status");
 	
 	status.innerHTML="Verifying...";
 	
-	if (sname=="" || type=="" || shours== ""|| branch==""|| scode == "" || year == "")
+	if (sname=="" || type=="" || shours== ""|| branch==""|| scode == "" || Sem == "")
 	{
 		status.innerHTML = "Please fill in all details";
 		
@@ -59,7 +59,7 @@ session_start();
 				}
 	        }
         }
-        ajax.send("sname="+sname+"&type="+type+"&scode="+scode+"&year="+year+"&branch="+branch+"&shours="+shours); //shoots variable to php  
+        ajax.send("sname="+sname+"&type="+type+"&scode="+scode+"&Sem="+Sem+"&branch="+branch+"&shours="+shours); //shoots variable to php  
 	}
    }
    </script>
@@ -72,17 +72,20 @@ session_start();
 	Name : <input type="text" id="sname" name="sname"></input><br><br>
 	Type : <select name="type" id="type">
 		   <option value="lab">Lab </option>
-		   <option value="tut">Lecture+Tut</option>
-		   <option value="lecture">Only Lectures</option>
+		   <option value="tut">Tut</option>
+		   <option value="lecture">Lectures</option>
 		   </select><br><br>
 	Code : <input type="text" id="scode" name="scode"></input><br><br>
 	Hours : <input type="text" id="shours" name="shours"></input><br><br>
-	Year : <select name="year" id="year">
-		   <option value="first">First Year</option>
-		   <option value="second">Second Year</option>
-		   <option value="third">Third Year</option>
-		   <option value="fourth">Fourth Year</option>
-		   <option value="fifth">Fifth Year</option>
+	Sem : <select name="Sem" id="Sem">
+		   <option value="first">First Sem</option>
+		   <option value="second">Second Sem</option>
+		   <option value="third">Third Sem</option>
+		   <option value="fourth">Fourth Sem</option>
+		   <option value="fifth">Fifth Sem</option>
+		   <option value="sixth">Sixth Sem</option>
+		   <option value="seventh">Seventh Sem</option>
+		   <option value="eigth">Eigth Sem</option>
 		   </select><br><br>
 	Branch :   <select name="branch" id="branch">
 		   <option value="math">Math</option>

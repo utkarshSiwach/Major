@@ -68,14 +68,22 @@ if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && ( isset($_P
 	
 	if ($run['ab']!=0) {
 	
-	$query = "UPDATE teacherSubjects set choice1='$c1', choice2='$c2', choice3='$c3', choice4='$c4', choice5='$c5'  where teacherId='$userID'";  
-	            $run=mysqli_query($con, $query) or die (mysqli_error($con));
-				echo "subjects preference updated" ; 
+	$query = "UPDATE teacherSubjects set subjectID='$c1' where teacherId='$userID' AND preference = 1";
+	$run=mysqli_query($con, $query) or die (mysqli_error($con));
+	$query = "UPDATE teacherSubjects set subjectID='$c2' where teacherId='$userID' AND preference = 2";
+	$run=mysqli_query($con, $query) or die (mysqli_error($con));
+	$query = "UPDATE teacherSubjects set subjectID='$c3' where teacherId='$userID' AND  preference = 3";
+	$run=mysqli_query($con, $query) or die (mysqli_error($con));	
+	$query = "UPDATE teacherSubjects set subjectID='$c4' where teacherId='$userID' AND preference = 4";
+	$run=mysqli_query($con, $query) or die (mysqli_error($con));
+	$query = "UPDATE teacherSubjects set subjectID='$c5' where teacherId='$userID' AND preference = 5";
+	$run=mysqli_query($con, $query) or die (mysqli_error($con));
+	if ($run) echo "subjects preference updated" ; 
 	}
 
     else    {	
-				$query = "insert into teacherSubjects values($userID,$c1,$c2,$c3,$c4,$c5)";
-	$run=mysqli_query($con, $query);
+				$query = "insert into teacherSubjects values($userID,1,$c1), ($userID, 2, $c2) ,($userID, 3, $c3) ,($userID, 4, $c4) , ($userID, 5, $c5)";
+	$run=mysqli_query($con, $query) or die (mysqli_error($con));
 	echo "subjects preference added" ;
 				
 			}
@@ -97,8 +105,15 @@ function restrict(elem){ //runs for checking the email id and username
 	var rx = new RegExp;
 	if(elem == "email"){
 		rx = /[' "]/g; // no ' or "
-	} else if(elem == "fname" || elem == "lname"){
+	} 
+	
+	else if(elem == "fname" || elem == "lname"){
 		rx = /[^a-z]/gi; //username only accepts alphabets, and its not case sensitive (global means works throughot the string)
+	}
+	
+	
+	else if(elem == "phone"){
+		rx = /[^0-9]/g; 
 	}
 	tf.value = tf.value.replace(rx, "");
 }
@@ -252,7 +267,7 @@ function startProcessing() {
 		echo "<input id='email' type='text'  onKeyUp='restrict('email')' maxlength='60' value='".$info['Email']."'>";
 		echo "<br><br>OR<br><br>";
 		echo" <div>Phone Number: </div>";
-		echo" <input id='phon' type='text'  maxlength='20' value='".$info['Phone']."'>";
+		echo" <input id='phon' type='text' onKeyUp='restrict('phone')'  maxlength='20' value='".$info['Phone']."'>";
 		echo "<div>Gender:</div>";
 		echo "<select id='gender'>";
 		echo "<option value=''></option>";
@@ -260,7 +275,7 @@ function startProcessing() {
 		echo "<option value='f'>Female</option></select>";
 		echo "<br><br>";
 		echo" <div>Department: </div>";
-		echo" <input id='phon' type='text'  maxlength='20' value='".$info['Department']."'>";
+		echo" <input id='phon' type='text'   maxlength='20' value='".$info['Department']."'>";
 	
 	}
  	echo "<div>Subject List </div>"; // on change should generate 5 inputs for preference of subjects

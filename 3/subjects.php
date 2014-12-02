@@ -12,7 +12,7 @@ include_once("db_conx.php");
 	$branch = $_POST['branch'];
 	$hours = $_POST['hours'];
 	
-	$query = "UPDATE SUBJECTS SET Sname='$sname', Type='$stype', year='$year', hours = '$hours', Branch = '$branch' WHERE Scode = '$scode'";
+	$query = "UPDATE SUBJECTS SET Sname='$sname', Type='$stype', Sem='$year', hours = '$hours', Branch = '$branch' WHERE Scode = '$scode'";
 	$result = mysqli_query($con, $query) or die(mysqli_error($con));
 	if ($result) {
 		echo "Success!";
@@ -33,14 +33,14 @@ if (isset ($_POST['sid'])) {
 	
 	$sid = $_POST['sid'];
 	if ($sid == "all") $query = "SELECT * FROM SUBJECTS";
-	else $query = "SELECT * FROM SUBJECTS where year='$sid'";
+	else $query = "SELECT * FROM SUBJECTS where Sem='$sid'";
 	$results=mysqli_query($con,$query) or die(mysqli_error($con));
 	
 	if ($results) {
 	
-	echo "<table id='param-table' align='center' style=' border: 1px solid black;'><tr style=' border: 1px solid black; padding: 15px'><td style=' border: 1px solid black; padding: 15px;'>Subject Code</td><td style=' border: 1px solid black;  padding: 15px;'>Type (lab, tut or lecture)</td><td style='  padding: 15px; border: 1px solid black;'>Subject Name</td><td style='  padding: 15px; border: 1px solid black;'>Year</td><td style='  padding: 15px; border: 1px solid black;'>Branch</td><td style='  padding: 15px; border: 1px solid black;'>Hours</td> <td style='  padding: 15px; border: 1px solid black;'>Edit Subject</td><tr>";
+	echo "<table id='param-table' align='center' style=' border: 1px solid black;'><tr style=' border: 1px solid black; padding: 15px'><td style=' border: 1px solid black; padding: 15px;'>Subject Code</td><td style=' border: 1px solid black;  padding: 15px;'>Type (lab, tut or lecture)</td><td style='  padding: 15px; border: 1px solid black;'>Subject Name</td><td style='  padding: 15px; border: 1px solid black;'>Semester</td><td style='  padding: 15px; border: 1px solid black;'>Branch</td><td style='  padding: 15px; border: 1px solid black;'>Hours</td> <td style='  padding: 15px; border: 1px solid black;'>Edit Subject</td><tr>";
 	while ($row_users = mysqli_fetch_array($results)) {
-		echo "<form onSubmit='return false;' method='POST' style='float:left;'><tr style=' border: 1px solid black;  padding: 15px;'><td style=' border: 1px solid black;  padding: 15px;'>".$row_users['Scode']."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='stype' type='text'  maxlength='50' value='".$row_users['Type']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='sname' type='text'  maxlength='50' value='".$row_users['Sname']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='year' type='text'  maxlength='20' value='".$row_users['Year']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='branch' type='text'  maxlength='20' value='".$row_users['Branch']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='hour' type='text'  maxlength='20' value='".$row_users['Hours']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<button onclick='editParam(\"" . $row_users['Scode'] . "\", this)'>Edit</button>"."</td></form></tr>";
+		echo "<form onSubmit='return false;' method='POST' style='float:left;'><tr style=' border: 1px solid black;  padding: 15px;'><td style=' border: 1px solid black;  padding: 15px;'>".$row_users['Scode']."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='stype' type='text'  maxlength='50' value='".$row_users['Type']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='sname' type='text'  maxlength='50' value='".$row_users['Sname']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='sem' type='text'  maxlength='20' value='".$row_users['Sem']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='branch' type='text'  maxlength='20' value='".$row_users['Branch']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<input name='hour' type='text'  maxlength='20' value='".$row_users['Hours']."'>"."</td><td style=' border: 1px solid black;  padding: 15px;'>"."<button onclick='editParam(\"" . $row_users['Scode'] . "\", this)'>Edit</button>"."</td></form></tr>";
 	}
 	echo "</table>";
 	}
@@ -91,7 +91,7 @@ function editParam(scode, button) {
 	//alert(scode);
     stype = tr.querySelector("input[name='stype']").value;
 	sname = tr.querySelector("input[name='sname']").value;
-    year  = tr.querySelector("input[name='year']").value;
+    year  = tr.querySelector("input[name='sem']").value;
     branch  = tr.querySelector("input[name='branch']").value;
     hours  = tr.querySelector("input[name='hour']").value;
 
@@ -155,13 +155,16 @@ function editParam(scode, button) {
 	<a href="new_subjects.php" style="float:right;">New Subject</a>
 	
 	<form id="filter-sub" onsubmit="return false;"  align="center">
-		Year :<select name="sid" id="sid" autofocus>
+		Sem :<select name="sid" id="sid" autofocus>
 		<option value="all" selected>ALL</option>
-		<option value="first" >First Year</option>
-		<option value="second">Second Year</option>
-		<option value="third" >Third Year</option>
-		<option value="fourth">Fourth Year</option>
-		<option value="fifth">Fifth Year</option>
+		<option value="first" >First </option>
+		<option value="second">Second</option>
+		<option value="third" >Third </option>
+		<option value="fourth">Fourth </option>
+		<option value="fifth">Fifth</option>
+		<option value="sixth">Sixth</option>
+		<option value="seventh">Seventh</option>
+		<option value="eigth">Eigth</option>
 	</select>
 	<button onclick="filter()">Filter</button>
 </form>

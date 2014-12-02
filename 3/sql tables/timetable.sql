@@ -1,5 +1,32 @@
+-- phpMyAdmin SQL Dump
+-- version 4.0.4.1
+-- http://www.phpmyadmin.net
+--
+-- Host: 127.0.0.1
+-- Generation Time: Nov 21, 2014 at 06:55 PM
+-- Server version: 5.5.32
+-- PHP Version: 5.4.16
 
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+SET time_zone = "+00:00";
+
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8 */;
+
+--
 -- Database: `timetable`
+--
+CREATE DATABASE IF NOT EXISTS `timetable` DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci;
+USE `timetable`;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `batch`
+--
 
 CREATE TABLE IF NOT EXISTS `batch` (
   `BID` int(11) NOT NULL AUTO_INCREMENT,
@@ -7,20 +34,26 @@ CREATE TABLE IF NOT EXISTS `batch` (
   `Type` varchar(20) NOT NULL,
   `Year` varchar(10) NOT NULL,
   PRIMARY KEY (`BID`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=12 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=22 ;
+
+-- --------------------------------------------------------
 
 --
--- Dumping data for table `batch`
+-- Table structure for table `batchsubjects`
 --
 
-INSERT INTO `batch` (`BID`, `Name`, `Type`, `Year`) VALUES
-(1, 'B1', 'cse', 1),
-(5, 'B3', 'cse',  1),
-(7, 'B3', 'ece',  2),
-(8, 'B5', 'ece',  2),
-(9, 'B2', 'bio',  3),
-(10, 'B6', 'cse', 4),
-(11, 'B7', 'cse', 4);
+CREATE TABLE IF NOT EXISTS `batchsubjects` (
+  `batchId` int(11) NOT NULL,
+  `subjectId` int(11) NOT NULL,
+  `studentNos` int(11) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--
+-- Dumping data for table `batchsubjects`
+--
+
+INSERT INTO `batchsubjects` (`batchId`, `subjectId`, `studentNos`) VALUES
+(21, 54643, 30);
 
 -- --------------------------------------------------------
 
@@ -56,22 +89,59 @@ CREATE TABLE IF NOT EXISTS `subjects` (
   `Sname` varchar(20) NOT NULL,
   `Type` varchar(20) NOT NULL,
   `Scode` varchar(20) NOT NULL,
-  `Year` varchar(10) NOT NULL,
+  `Sem` varchar(10) NOT NULL,
   `Hours` int(10) NOT NULL,
   `Branch` varchar(30) NOT NULL,
   PRIMARY KEY (`SID`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=6 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=7 ;
 
 --
 -- Dumping data for table `subjects`
 --
 
-INSERT INTO `subjects` (`SID`, `Sname`, `Type`, `Scode`, `Year`, `Hours`, `Branch`) VALUES
-(1, 'Maths', 'lab', '12', 'second', 3, 'maths'),
+INSERT INTO `subjects` (`SID`, `Sname`, `Type`, `Scode`, `Sem`, `Hours`, `Branch`) VALUES
+(1, 'Maths', 'lab', '12', 'third', 3, 'maths'),
 (2, 'English', 'lecture', '!0Ba123', 'third', 3, 'pd'),
 (3, 'Data Mining', 'tut', '10CI321', 'fourth', 3, 'cse'),
 (4, 'Operating System', 'lab', '54643', 'second', 4, 'cse'),
-(5, 'Cloud Computing', 'tut', '10CI13846', 'fourth', 3, 'ece');
+(5, 'Cloud Computing', 'tut', '10CI13846', 'fourth', 3, 'ece'),
+(6, 'Cryptography', 'lecture', '10B1CI124', 'sixth', 3, 'cse');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `teachers`
+--
+
+CREATE TABLE IF NOT EXISTS `teachers` (
+  `Id` int(10) NOT NULL,
+  `Name` varchar(40) NOT NULL,
+  `Dept` varchar(40) NOT NULL,
+  PRIMARY KEY (`Id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `teachersubjects`
+--
+
+CREATE TABLE IF NOT EXISTS `teachersubjects` (
+  `teacherID` int(11) NOT NULL,
+  `preference` int(10) NOT NULL,
+  `subjectID` int(10) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--
+-- Dumping data for table `teachersubjects`
+--
+
+INSERT INTO `teachersubjects` (`teacherID`, `preference`, `subjectID`) VALUES
+(5, 1, 3),
+(5, 2, 4),
+(5, 3, 6),
+(5, 4, 4),
+(5, 5, 4);
 
 -- --------------------------------------------------------
 
@@ -80,43 +150,31 @@ INSERT INTO `subjects` (`SID`, `Sname`, `Type`, `Scode`, `Year`, `Hours`, `Branc
 --
 
 CREATE TABLE IF NOT EXISTS `users` (
-  `UserID` int(10) AUTO_INCREMENT,
+  `UserID` int(10) NOT NULL AUTO_INCREMENT,
   `FName` varchar(30) NOT NULL,
   `LName` varchar(30) NOT NULL,
-  `Email` varchar(100),
-  `Phone` varchar(20),
+  `Email` varchar(100) NOT NULL DEFAULT '',
+  `Phone` varchar(20) NOT NULL DEFAULT '',
   `Password` varchar(50) NOT NULL,
   `Gender` varchar(10) NOT NULL,
-  `Department` varchar(30),
-  `CreatedBy` varchar(100),
-  `CreatedDate` datetime,
-  `CreatedIP` varchar(100),
-  `ModifiedBy` varchar(100),
-  `ModifiedDate` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `ModifiedIP` varchar(100),
+  `Department` varchar(30) DEFAULT NULL,
+  `CreatedBy` varchar(100) DEFAULT NULL,
+  `CreatedDate` datetime DEFAULT NULL,
+  `CreatedIP` varchar(100) DEFAULT NULL,
+  `ModifiedBy` varchar(100) DEFAULT NULL,
+  `ModifiedDate` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `ModifiedIP` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`Email`,`Phone`,`UserID`),
   UNIQUE KEY `UserID` (`UserID`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=5 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=6 ;
 
-create table batchSubjects (
-	batchId	integer,
-	subjectId	integer,
-	constraint fk_batchIdBS foreign key (batchId) references batch (bid),
-	constraint fk_subjectIdBS foreign key (subjectId) references subjects (sid)
-);
- insert into batchSubjects values(1,2),(1,3),(1,4),(5,1),(5,5),(1,1);
- 
- create table teachers (
-	id integer primary key,
-	name varchar(40),
-	dept varchar(40)
-);
+--
+-- Dumping data for table `users`
+--
 
-create table teacherSubjects (
-	teacherId integer,
-	preference integer,
-	subjectId integer,	
-	foreign key (teacherId) references teachers (id),
-	foreign key (subjectId) references subjects (sid)
-);
- 
+INSERT INTO `users` (`UserID`, `FName`, `LName`, `Email`, `Phone`, `Password`, `Gender`, `Department`, `CreatedBy`, `CreatedDate`, `CreatedIP`, `ModifiedBy`, `ModifiedDate`, `ModifiedIP`) VALUES
+(5, 'Vasundhra', 'Gupta', 'vasundhragupta@gmail.com', '', 'e10adc3949ba59abbe56e057f20f883e', 'f', 'cse', NULL, '2014-11-21 14:01:17', '::1', NULL, '2014-11-21 09:16:05', '::1');
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

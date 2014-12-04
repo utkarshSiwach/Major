@@ -19,13 +19,15 @@ public:
 	// in prefferedSubjects first one is most preferred,last one - least
 	vector<Subjects *> allocatedSubjects,preferredSubjects;	
 	vector<Batches *> allocatedBatches;
-	static int const maxTeachingHours = 16;
+	static int maxTeachingHours;
 	static int fetchRecordsFromDB();
 	static int fetchSubjectsFromDB();
 	static int assignSubjects();
+	static int assignBatches();
 	static Teachers* findTeacher(int);
 	void display();
 };
+int Teachers::maxTeachingHours = 16;
 
 class Subjects {
 public:
@@ -39,17 +41,20 @@ public:
 	// will be incremented by Batches::fetchSubjectsFromDB()
 	int numOfBatchesTakingIt;
 
-	static const int maxPreferencesAllowed = 5;
+	static int maxPreferencesAllowed;
 
-	// onordered map from (subjectId -> isAllocated) to check if a 
-	// subject has been allocated to a teacher
-	// 0 for not allocated, 1 - allocated
-	// Used be Teachers::assignSubjects(), init. by Subjects::fetchRecordsFromDB()
+	// unordered map from (subjectId -> numOfAllocsLeft) to check if a 
+	// subject can still be allocated to a teacher
+	// 0 for every instance allocated, >0 for number of possible allocations left
+	// Used be Teachers::assignSubjects(), initialized by Subjects::initializeMap()
 	static unordered_map<int,int> subjectsAllocated;
 	static int fetchRecordsFromDB();
+	static void initializeMap();
 	static Subjects* findSubject(int);
 	void display();
 };
+int Subjects::maxPreferencesAllowed = 5;
+unordered_map<int,int> Subjects::subjectsAllocated;
 
 class Batches {
 public:
@@ -87,12 +92,10 @@ public:
 
 class Slots {
 public:
-	int time;
-	int batchId;
-	int roomId;
-	int teacherId;
-	int subjectId;
-
+	int id;
+	Batches * batch;
+	Teachers * teacher;
+	Subjects * subject;
 };
 
 std::vector<Batches*> batchVector;
@@ -100,8 +103,7 @@ std::vector<Teachers*> teacherVector;
 std::vector<Subjects*> subjectVector;
 std::vector<Students*> studentVector;
 std::vector<Rooms*> roomVector;
-std::vector<Slots> slotVector;
-
+std::list<Slots*> slotList;	// it is populated by Teachers::assignBatches()
 
 int Teachers::fetchRecordsFromDB() {
 	MySqlDatabase oDB;
@@ -110,11 +112,16 @@ int Teachers::fetchRecordsFromDB() {
 	}
 	ResultSet *rs = oDB.execute("select * from teachers");
 	int n = rs->rowsCount();
+	if(n==0) {
+		return 0;
+	}
 	Teachers *temp;	
 	while(rs->next()) {
 		temp= new Teachers();
 		temp->id = rs->getInt(1);
 		temp->name=rs->getString(2);
+		temp->dept=rs->getString(3);
+		temp->hrsCurrentlyTeaching=0;
 		teacherVector.push_back(temp);
 	}
 	delete rs;
@@ -136,6 +143,7 @@ int Teachers::fetchSubjectsFromDB() {
 	}
 	ResultSet *rs = oDB.execute("select * from teacherSubjects order by teacherId,preference");
 	int teacherId,subjectId;
+	
 	Teachers *curTeacher=teacherVector[0];
 	Subjects *subject=subjectVector[0];
 	while(rs->next()) {
@@ -166,29 +174,36 @@ Teachers* Teachers::findTeacher(int id) {
 // fills the allocatedSubjects vector of teachers
 // by looking up preferredSubjects of each teacher
 // allocating the first preferences of each teacher if not already taken.
+// after performing the allocation, decrement subjectsAllocated map by 1
 // Also assigns tutorials of that subject, if available.
 // Then moves on to second preferences of every teacher and so on..
+// After finishing with all prefs. if any subject instance is left, it is
+// assigned to a free teacher.
+// Returns 1 if it is unable to assign all subjects to a teacher, 0 otherwise
 int Teachers::assignSubjects() {
-	
+	Subjects::initializeMap();
 	int i=0;
 	for(int prefNum=0;prefNum < Subjects::maxPreferencesAllowed; prefNum++) {
 		Subjects * tempSub;
+
+		// instead of linear iteration, random selection of teacher	will be more 'fair'
+		// as right now 1st teacher getting all pref subjects
 		for(Teachers * teacher : teacherVector) {
 			if(prefNum>=teacher->preferredSubjects.size()) {
 				break;
 			}
 			else {	// there are prefereed subjects left for this teacher
 				tempSub=teacher->preferredSubjects[i];
-				if(Subjects::subjectsAllocated[tempSub->id]==0 && 
+				if(Subjects::subjectsAllocated[tempSub->id]!=0 && 
 				 teacher->hrsCurrentlyTeaching < Teachers::maxTeachingHours) {
-					Subjects::subjectsAllocated[tempSub->id]=1;
+					Subjects::subjectsAllocated[tempSub->id]--;
 					teacher->hrsCurrentlyTeaching+=tempSub->hours;
 					teacher->allocatedSubjects.push_back(tempSub);
 				}
 				// now try to assign the respective tut
-				if(tempSub->type=="lecture" && Subjects::subjectsAllocated[tempSub->id+1]==0 && 
+				if(tempSub->type=="lecture" && Subjects::subjectsAllocated[tempSub->id+1]!=0 && 
 				 teacher->hrsCurrentlyTeaching < Teachers::maxTeachingHours) {
-					Subjects::subjectsAllocated[tempSub->id]=1;
+					Subjects::subjectsAllocated[tempSub->id]--;
 					teacher->hrsCurrentlyTeaching+=tempSub->hours;
 					teacher->allocatedSubjects.push_back(tempSub);
 				}
@@ -199,12 +214,65 @@ int Teachers::assignSubjects() {
 	// now try to allocate unallocated subjects
 
 	for( auto it = Subjects::subjectsAllocated.begin(); it!=Subjects::subjectsAllocated.end();it++) {
-		if(it->second!=1) { // allocate it
-			
+		if(it->second!=0) { // allocate it
+			// first find a teacher who is of the same dept.
+			// and is free for more subjects
+			int i = it->second;
+			int j=0;
+			Subjects * tempSub = Subjects::findSubject(it->first);
+			Teachers * tempT;
+			int loops = (Teachers::maxTeachingHours/tempSub->hours)+1;	// no. of times to loop around looking for a teacher
+			while(i>0 && loops>0) {	// i instances of this subjects remain, to be allocated		
+				tempT=teacherVector[j];
+				if(tempT->dept == tempSub->branch && tempT->hrsCurrentlyTeaching < Teachers::maxTeachingHours) {
+					i--;
+					it->second--;
+					tempT->hrsCurrentlyTeaching+=tempSub->hours;
+					tempT->allocatedSubjects.push_back(tempSub);
+				}
+				j++;	// select next teacher in circular array fashion
+				if(j==teacherVector.size() ) {j=0; loops--;}
+			}
+			if(i>0) {
+				// no more teachers available to teach that subject
+				// raise exception!!
+				// either make one teacher teach more or club few batches together
+				return 1;	// function failed
+			}
 		}
 	}
+	return 0;	// all allocation done
+}
 
-
+// for every subject a batch is taking, find a teacher taking it
+// and assign him/her to that batch.
+// Also add this combination of (teacher-batch-subject) to slotList
+// Can be optimized further, also there can be multiple bindings of teacher-batch
+int Teachers::assignBatches() {
+	bool done=false;
+	Slots * slot;
+	for(Batches * batch : batchVector) {
+		for(Subjects * subject : batch->subjectArr) {
+			done=false;
+			for(Teachers * teacher : teacherVector) {
+				if(teacher->dept != subject->branch) { continue; }
+				for(Subjects *tempSub : teacher->allocatedSubjects) {
+					if(tempSub==subject) {
+						teacher->allocatedBatches.push_back(batch);
+						slot = new Slots();
+						slot->id = slotList.size();
+						slot->batch = batch;
+						slot->subject = tempSub;
+						slot->teacher = teacher;
+						slotList.push_back(slot);
+						done=true;
+						break;
+					}
+				}
+				if(done) break;
+			}
+		}
+	}
 }
 
 ////////////
@@ -216,6 +284,9 @@ int Subjects::fetchRecordsFromDB() {
 	}
 	ResultSet *rs = oDB.execute("select * from subjects");
 	int n = rs->rowsCount();
+	if(n==0) {
+		return 0;
+	}
 	Subjects *temp;	
 	while(rs->next()) {
 		temp= new Subjects();
@@ -225,6 +296,7 @@ int Subjects::fetchRecordsFromDB() {
         temp->branch = rs->getString(7);
         temp->type = rs->getString(3);
         temp->hours = rs->getInt(6);
+		temp->numOfBatchesTakingIt=0;
         /*
 		// won't be needed once database entries of subjects are corrected
 		if (temp->type.compare("lect+tut") == 0) { //split lect+tut into lect, tut
@@ -244,6 +316,7 @@ int Subjects::fetchRecordsFromDB() {
         subjectVector.push_back(temp);
 
 		// now mark the subject as unallocated
+		//subjectsAllocated.insert(pair<int,int>(temp->id,0));
 		subjectsAllocated[temp->id]=0;
 	}
 	delete rs;
@@ -262,6 +335,16 @@ Subjects* Subjects::findSubject(int id) {
 	}
 	return NULL;	// not found
 }
+
+// initialize the unordered_map subjectsAllocated with the correct values
+// of the number of batches taking that subject
+// must be called after Batches::fetchSubjectsFromDB()
+void Subjects::initializeMap() {
+	for(Subjects * subject : subjectVector) {
+		subjectsAllocated[subject->id]=subject->numOfBatchesTakingIt;
+	}
+}
+
 /////////////
 
 // fills the batchVector with basic details of batches from the 
@@ -273,6 +356,9 @@ int Batches::fetchRecordsFromDB() {
 	}
 	ResultSet *rs = oDB.execute("select * from batch");
 	int n = rs->rowsCount();
+	if(n==0) {
+		return 0;
+	}
 	Batches *temp;	
 	while(rs->next()) {
 		temp= new Batches();
@@ -334,7 +420,7 @@ int Batches::groupBatchesForLectures() {
 Batches* Batches::findBatch(int id) {
 	int size = batchVector.size();
 	for(int i=0;i<size;i++) {
-		if(id==batchVector[i]->id) {
+		if(id==batchVector[i]->id[0]) {
 			return batchVector[i];
 		}
 	}
@@ -351,8 +437,11 @@ int Students::fetchRecordsFromDB() {
 	}
 	ResultSet *rs = oDB.execute("select * from students order by batchId");
 	int n = rs->rowsCount();
+	if(n==0) {
+		return 0;
+	}
 	Students *temp;	
-	Batches *batch = batchVector[0];	
+	Batches *batch = batchVector[0];
 	while(rs->next()) {
 		temp= new Students();
 		temp->id = rs->getInt(1);
@@ -360,7 +449,7 @@ int Students::fetchRecordsFromDB() {
 		temp->batchId = rs->getInt(3);
 		studentVector.push_back(temp);
 
-		if(batch->id != temp->batchId) {
+		if(batch->id[0] != temp->batchId) {
 			batch=Batches::findBatch(temp->batchId);
 		}
 		batch->studentArr.push_back(temp);
@@ -377,6 +466,9 @@ int Rooms::fetchRecordsFromDB() {
 	}
 	ResultSet *rs = oDB.execute("select * from room");
 	int n = rs->rowsCount();
+	if(n==0) {
+		return 0;
+	}
 	Rooms * room;
 	while(rs->next()) {
 		room = new Rooms();
@@ -392,10 +484,15 @@ int Rooms::fetchRecordsFromDB() {
 
 
 void Teachers::display() {
-	cout<<"\nTeacher id:"<<id<<" name:"<<name<<" pref. sub nos :"<<preferredSubjects.size();	
-	if(!allocatedSubjects.empty())//subArr->display();
-	if(!allocatedBatches.empty())//batchArr->display();
-	cout<<endl;
+	cout<<"\nTeacher id:"<<id<<" name:"<<name<<"\npref. subs:"<<preferredSubjects.size();	
+	if(!allocatedSubjects.empty()) { 
+		cout<<" sub allotted:"<<allocatedSubjects.size();
+		cout<<" hrs teaching:"<<hrsCurrentlyTeaching;
+		cout<<" batches allotted:"<<allocatedBatches.size();
+	}
+	if(!allocatedBatches.empty()){
+		cout<<"";
+	}
 }
 void Subjects::display() {
 	cout<<"\nSubject id: "<<id<<" name: "<<name;
@@ -411,7 +508,7 @@ void Rooms::display() {
 	cout<<"\nRoom id:"<<id<<" name:"<<name<<" capacity :"<<capacity<<" type :"<<type;
 }
 
-void main() {
+int main() {
 
 	/*
 		a complete ordering needs to be maintained while calling fetch
@@ -424,14 +521,29 @@ void main() {
 		5)Students::fetchRecordsFromDB()
 		6)Batches::fetchSubjectsFromDB()
 		7)Rooms::fetchRecordsFromDB()
+		8)Teachers::assignSubjects()
+		9)Teachers::assignBatches()
 	*/
-	Subjects::fetchRecordsFromDB();
-	Batches::fetchRecordsFromDB();
-	Teachers::fetchRecordsFromDB();
+	
+	int tempArr[5];
+	tempArr[0]=Subjects::fetchRecordsFromDB();
+	tempArr[1]=Batches::fetchRecordsFromDB();
+	tempArr[2]=Teachers::fetchRecordsFromDB();	
+	tempArr[3]=Students::fetchRecordsFromDB();
+	tempArr[4]=Rooms::fetchRecordsFromDB();
+	bool proceed = true;
+	for(int i:tempArr) {
+		if(i==0) proceed=false;
+	}
+	if(!proceed) {
+		cout<<"error some tables might be empty";
+		return 0;
+	}
 	Teachers::fetchSubjectsFromDB();
-	Students::fetchRecordsFromDB();
 	Batches::fetchSubjectsFromDB();	
-	Rooms::fetchRecordsFromDB();
+	
+	cout<<" fn ret:"<<Teachers::assignSubjects()<<" | ";
+	Teachers::assignBatches();
 
 	for(unsigned int i=0;i<teacherVector.size();i++) {
 		teacherVector[i]->display();
@@ -444,12 +556,15 @@ void main() {
 	for(unsigned int i=0;i<subjectVector.size();i++) {
 		subjectVector[i]->display();
 	}
+	/*
 	for(unsigned int i=0;i<studentVector.size();i++) {
 		studentVector[i]->display();
 	}
+	*/
 	for(unsigned int i=0;i<roomVector.size();i++) {
 		roomVector[i]->display();
 	}
 	cout<<endl;
 	system("pause");
+	return 1;
 }

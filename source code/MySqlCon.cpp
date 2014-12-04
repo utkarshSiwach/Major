@@ -4,7 +4,7 @@ MySqlDatabase::MySqlDatabase() {
 	DBHOST =  "tcp://127.0.0.1:3306";
 	USER = "root";
 	PASSWORD = "ticket1";
-	DATABASE = "major";
+	DATABASE = "timetable";
 }
 
 int MySqlDatabase::createConn(){

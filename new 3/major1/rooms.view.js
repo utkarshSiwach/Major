@@ -137,6 +137,7 @@ sap.ui.jsview("major1.rooms", {
 		
 		////////////////  things for center ////////////
 		
+		////////////////     rooms part  ///////////////////
 		var oTable = new sap.ui.table.Table("table1",{
 			title:"Rooms data",
 			visibleRowCount:10,
@@ -291,6 +292,213 @@ sap.ui.jsview("major1.rooms", {
 		oLayoutVertical = new sap.ui.layout.VerticalLayout("newRoomForm",{
 			content: [oForm2,oToolbar3]
 		}).addStyleClass("newRoom");
+		
+		///////////////////  subjects part /////////////////
+		///////////////////////////////////////////////////
+		
+		var oTable2 = new sap.ui.table.Table("table2",{
+			title:"Subjects data",
+			visibleRowCount:10,
+			width:"80%",
+			navigationMode:sap.ui.table.NavigationMode.Paginator,
+			selectionMode:sap.ui.table.SelectionMode.Single
+		});
+		
+		oTable2.addColumn(new sap.ui.table.Column("tab2Col1",{
+			label: new sap.ui.commons.Label({text:"Subject code"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","subCode"),
+			sortProperty:"subCode",
+			filterProperty:"subCode"
+		}));
+		
+		oTable2.addColumn(new sap.ui.table.Column("tab2Col2",{
+			label: new sap.ui.commons.Label({text:"Type"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","type"),
+			filterProperty:"type"
+		}));
+		
+		oTable2.addColumn(new sap.ui.table.Column("tab2Col3",{
+			label: new sap.ui.commons.Label({text:"Subject Name"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","name"),
+			sortProperty:"name",
+			filterProperty:"name"
+		}));
+		
+		oTable2.addColumn(new sap.ui.table.Column("tab2Col4",{
+			label: new sap.ui.commons.Label({text:"Semester"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","semester"),
+			sortProperty:"semester",
+			filterProperty:"semester"
+		}));
+		
+		oTable2.addColumn(new sap.ui.table.Column("tab2Col5",{
+			label: new sap.ui.commons.Label({text:"Branch"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","branch"),
+			sortProperty:"branch",
+			filterProperty:"branch"
+		}));
+		
+		oTable2.addColumn(new sap.ui.table.Column("tab2Col6",{
+			label: new sap.ui.commons.Label({text:"Hours"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","hours"),
+			sortProperty:"hours",
+			filterProperty:"hours"
+		}));
+		
+		var oModel2 = new sap.ui.model.json.JSONModel();		
+		oModel2.refresh(true);
+		oTable2.setModel(oModel2);
+		oTable2.bindRows("/modelData");
+				
+		var oToolbar1 = new sap.ui.commons.Toolbar("tb1Sub",{width:"80%"});
+		oToolbar1.setDesign(sap.ui.commons.ToolbarDesign.Standard);
+		
+		var button = new sap.ui.commons.Button("editSubBtn",{
+						text:"Edit",
+						icon: "sap-icon://edit",
+						press: oController.editSubject
+					});
+		var button2 = new sap.ui.commons.Button("deleteSubBtn",{
+						text:"Delete",
+						icon: "sap-icon://delete",
+						press: oController.deleteSubject
+					});
+		oToolbar1.addItem(button);
+		oToolbar1.addItem(button2);
+		oToolbar1.addStyleClass("toolbar_color");
+		
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("subjectTable",{
+			content: [oTable2,oToolbar1]
+		}).addStyleClass("table1");
+		
+		/////// edit subject (form and toolbar) /////
+		var oLayout1 = new sap.ui.layout.form.GridLayout("L2", {singleColumn: true});
+		var oFormId = "F1Sub";
+		var oFormContainerId = "formC1Sub";
+		var oForm1 = new sap.ui.layout.form.Form(oFormId,{
+			title: new sap.ui.core.Title({text: "Edit Subject"}),
+			width: "300px",
+			layout: oLayout1,
+			formContainers: [
+				new sap.ui.layout.form.FormContainer(oFormContainerId,{
+					formElements: [						
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Subject code",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Type",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [
+								// Create a DropdownBox
+								new sap.ui.commons.DropdownBox("DropdownBox1",{
+									layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+								.setTooltip("Subject type")
+								.setEditable(true)
+								.setWidth("200px")
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("lecture")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("lab")
+								)	
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("lecture+tut")
+								)
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Name",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text:"Semester",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Branch",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text:"Hours",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						})
+					]
+				})
+			]
+		});
+		
+		var oToolbar2 = new sap.ui.commons.Toolbar("tb2Sub",{width:"300px"});
+		//oToolbar2.setDesign(sap.ui.commons.ToolbarDesign.Standard);		
+		var button = new sap.ui.commons.Button("updateSubBtn",{
+						text:"Update",
+						icon: "sap-icon://save",
+						press: oController.updateEditSubject
+					});
+		var button2 = new sap.ui.commons.Button({
+						text:"Cancel",
+						icon: "sap-icon://decline",
+						press: oController.cancelEditSubject
+					});
+		oToolbar2.addItem(button);
+		oToolbar2.addItem(button2);
+		oForm1.setTitle("Edit Subject");
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("editSubForm",{
+			content: [oForm1,oToolbar2]
+		}).addStyleClass("editRoom");
+		
+		/////// new room (prev. form, new toolbar, new layout) /////
+		var oToolbar3 = new sap.ui.commons.Toolbar("tb3Sub",{width:"300px"});		
+		var button = new sap.ui.commons.Button("newSubBtn",{
+						text:"Add",
+						icon: "sap-icon://save",
+						press: oController.addNewSubject
+					});
+		var button2 = new sap.ui.commons.Button({
+						text:"Cancel",
+						icon: "sap-icon://decline",
+						press: oController.cancelNewSubject
+					});
+		oToolbar3.addItem(button);
+		oToolbar3.addItem(button2);		
+		oToolbar3.addStyleClass("toolbar3Spacing");
+		var oFormId = "F2Sub";
+		var oFormContainerId = "formC2Sub";
+		var oForm2 = oForm1.clone("2");
+		oForm2.setTitle("New Subject");
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("newSubForm",{
+			content: [oForm2,oToolbar3]
+		}).addStyleClass("newSubject");
 		
 	} // createContent
 

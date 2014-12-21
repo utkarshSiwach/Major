@@ -8,7 +8,6 @@ if($_POST['remember']) {
 	setcookie('remember_me', $_POST['username'], $year);
 	echo "success";
 }
-
 elseif(!$_POST['remember']) {
 	if(isset($_COOKIE['remember_me'])) {
 		$past = time() - 100;
@@ -20,6 +19,8 @@ elseif(!$_POST['remember']) {
 ?>
 
 <?php
+////////////  sign up /////////////
+
 if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && isset($_POST["p"]) && ( isset($_POST["e"]) || isset($_POST["phone"])) && isset($_POST['d'])){
 	
 	include_once("db_conx.php");	
@@ -78,8 +79,13 @@ if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && isset($_POS
     //insertion into DB
 			$phone = $_POST["phone"];
 			$e = $_POST["e"];
-			$sql3 = "INSERT INTO users(fname, lname, email, phone, password, gender, CreatedDate, CreatedIP, Department) VALUES('$f', '$l' ,'$e', '$phone' , '$p' , '$g', NOW(),'$ipaddress', '$d')";		
-			$query2 = mysqli_query($con, $sql3); 
+			$sql3 = "INSERT INTO users(fname, lname, email, phone, password, gender,"
+				."CreatedDate, CreatedIP, Department) VALUES("
+				."'$f', '$l' ,'$e', '$phone' , '$p' , '$g', NOW(),'$ipaddress', '$d')";		
+									
+			$query2 = mysqli_query($con, $sql3);			
+			$sql4 = "insert into teachers (name,dept,userId) values ('$f $l','$d',last_insert_id())";
+			$result = mysqli_query($con,$sql4) or die (mysqli_error($con));
 			
 			if ($phone == "") {
 				$sql = "SELECT * FROM users WHERE Email = '$e'";
@@ -100,6 +106,8 @@ if(isset($_POST["f"]) && isset($_POST["l"]) && isset($_POST["g"]) && isset($_POS
 ?>
 
 <?php
+//////////  login and redirect /////////////
+
 if (isset($_POST['username']) && isset($_POST['password'])) {
 	include_once("db_conx.php");
 	$u = $_POST["username"];
@@ -117,7 +125,16 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 				$_SESSION['SESS_FIRST_NAME'] = $member['FName'];
 				$_SESSION['SESS_LAST_NAME'] = $member['LName'];
 				$_SESSION['SESS_EMAIL']= $member['Phone'];
-				//echo $_SESSION['SESS_FIRST_NAME'] ;
+				$_SESSION['name'] = "".$member['FName']." ".$member['LName'];
+				$_SESSION['dept'] = $member['Department'];
+				
+				$query = "select id from teachers where id=".$member['UserID'];
+				$result = mysqli_query($con,$query);
+				$row = mysqli_fetch_assoc($result);
+				$_SESSION['userId'] = $row['id'];
+				
+				$query = "";
+				
 				exit();
 			}
 			else {
@@ -130,7 +147,7 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 			$sql = "SELECT * FROM users WHERE email='$u' AND password='$p' LIMIT 1"; //check against email
 			$query = mysqli_query($con, $sql);
 			
-		$e_check = mysqli_num_rows($query);
+			$e_check = mysqli_num_rows($query);
 			//var_dump($e_check);
 			 if ($e_check != 0) {
 				echo "success";
@@ -138,7 +155,14 @@ if (isset($_POST['username']) && isset($_POST['password'])) {
 				$_SESSION['SESS_FIRST_NAME'] = $member['FName'];
 				$_SESSION['SESS_LAST_NAME'] = $member['LName'];
 				$_SESSION['SESS_EMAIL']= $member['Email'];
-				//echo $_SESSION['SESS_FIRST_NAME'] ;
+				$_SESSION['name'] = "".$member['FName']." ".$member['LName'];
+				$_SESSION['dept'] = $member['Department'];
+			
+				$query = "select id from teachers where id=".$member['UserID'];
+				$result = mysqli_query($con,$query);
+				$row = mysqli_fetch_assoc($result);
+				$_SESSION['userId'] = $row['id'];
+				
 				exit();
 			}
 			else {
@@ -233,7 +257,7 @@ function login(){
 	var password = document.getElementById("pwd").value;
 	var status = document.getElementById("status2");
 	var remember = document.getElementById("remember").checked;
-	 if (document.getElementById("remember").checked) {
+	if (document.getElementById("remember").checked) {
 		var ajax = ajaxObj("POST", "index.php");
 		ajax.onreadystatechange = function() {
 	        if(ajaxReturn(ajax) == true) {
@@ -260,7 +284,7 @@ function login(){
 	        if(ajaxReturn(ajax) == true) {
 	            if(ajax.responseText.trim() === "success"){ ///returned from php file
 					
-					window.location.assign("up.php");
+					window.location.assign("index2.php");
 					
 				}
 				else {

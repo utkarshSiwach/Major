@@ -22,12 +22,6 @@ sap.ui.jsview("major1.rooms", {
 				visible: true 
 				//content: [new sap.ui.commons.TextView({text: 'Top Area', design: sap.ui.commons.TextViewDesign.Bold })]
 				}),
-			bottom: new sap.ui.commons.layout.BorderLayoutArea({
-				size: "5%",
-				contentAlign: "center",
-				visible: true, 
-				content: [new sap.ui.commons.TextView({text: 'Bottom Area', design: sap.ui.commons.TextViewDesign.Bold })]
-				}),
 			begin: new sap.ui.commons.layout.BorderLayoutArea({
 				size: "20%",
 				contentAlign: "left",
@@ -51,12 +45,29 @@ sap.ui.jsview("major1.rooms", {
 		oAppHeader.setLogoText("TIMETABLE GENERATOR");
 		//configure the welcome area
 		oAppHeader.setDisplayWelcome(true);
-		oAppHeader.setUserName("John Doe");
+		oAppHeader.setUserName(userName);
 		//configure the log off area
 		oAppHeader.setDisplayLogoff(true);
 		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.top,oAppHeader);
 		
 		//////////////// things for begin /////////////
+		///////////////////////////////////////////////
+		
+		//Create a panel instance
+		var oPanel5 = new sap.ui.commons.Panel({showCollapseIcon: false});
+		oPanel5.setAreaDesign(sap.ui.commons.enums.AreaDesign.Plain);
+		oPanel5.setBorderDesign(sap.ui.commons.enums.BorderDesign.Box);
+		//Set the title of the panel
+		oPanel5.setTitle(new sap.ui.core.Title({text:"Timetable"}));
+		var oViewTtBtn = new sap.ui.commons.Button({width:"130px",text:"View Timetable",press:oController.manageClick});
+		//oPanel5.addContent(oViewTtBtn);		
+		var oCreateTtBtn = new sap.ui.commons.Button({width:"130px",text:"Create Timetable",press:oController.manageClick});
+		oLayoutVertical = new sap.ui.layout.VerticalLayout({
+			content: [oViewTtBtn,oCreateTtBtn]
+		});
+		oPanel5.addContent(oLayoutVertical);		
+		oPanel5.addStyleClass("panelSpacing");
+		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,oPanel5);
 		
 		//Create a panel instance
 		var oPanel = new sap.ui.commons.Panel({showCollapseIcon: false});
@@ -106,35 +117,35 @@ sap.ui.jsview("major1.rooms", {
 		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,oPanel3);
 		
 		//Create a panel instance
+		var oPanel6 = new sap.ui.commons.Panel({showCollapseIcon: false});
+		oPanel6.setAreaDesign(sap.ui.commons.enums.AreaDesign.Plain);
+		oPanel6.setBorderDesign(sap.ui.commons.enums.BorderDesign.Box);
+		//Set the title of the panel
+		oPanel6.setTitle(new sap.ui.core.Title({text:"Course Preferences"}));
+		var oViewPrefBtn = new sap.ui.commons.Button({
+			width:"130px",text:"View Preferences",press:oController.manageClick
+		});
+		oLayoutVertical = new sap.ui.layout.VerticalLayout({
+			content: [oViewPrefBtn]
+		});
+		oPanel6.addContent(oLayoutVertical);		
+		oPanel6.addStyleClass("panelSpacing");
+		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,oPanel6);
+		
+		//Create a panel instance
 		var oPanel4 = new sap.ui.commons.Panel({showCollapseIcon: false});
 		oPanel4.setAreaDesign(sap.ui.commons.enums.AreaDesign.Plain);
 		oPanel4.setBorderDesign(sap.ui.commons.enums.BorderDesign.Box);
 		//Set the title of the panel
-		oPanel4.setTitle(new sap.ui.core.Title({text:"Edit Profile"}));
-		var oEditBtn = new sap.ui.commons.Button({width:"130px",text:"Edit",press:oController.manageClick});
+		oPanel4.setTitle(new sap.ui.core.Title({text:"Manage Profile"}));
+		var oViewBtn = new sap.ui.commons.Button({width:"130px",text:"View",press:oController.manageClick});
 		oLayoutVertical = new sap.ui.layout.VerticalLayout({
-			content: [oEditBtn]
+			content: [oViewBtn]
 		});
 		oPanel4.addContent(oLayoutVertical);		
 		oPanel4.addStyleClass("panelSpacing");
 		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,oPanel4);
-		
-		//Create a panel instance
-		var oPanel5 = new sap.ui.commons.Panel({showCollapseIcon: false});
-		oPanel5.setAreaDesign(sap.ui.commons.enums.AreaDesign.Plain);
-		oPanel5.setBorderDesign(sap.ui.commons.enums.BorderDesign.Box);
-		//Set the title of the panel
-		oPanel5.setTitle(new sap.ui.core.Title({text:"Timetable"}));
-		var oViewTtBtn = new sap.ui.commons.Button({width:"130px",text:"View Timetable",press:oController.manageClick});
-		//oPanel5.addContent(oViewTtBtn);		
-		var oCreateTtBtn = new sap.ui.commons.Button({width:"130px",text:"Create Timetable",press:oController.manageClick});
-		oLayoutVertical = new sap.ui.layout.VerticalLayout({
-			content: [oViewTtBtn,oCreateTtBtn]
-		});
-		oPanel5.addContent(oLayoutVertical);		
-		oPanel5.addStyleClass("panelSpacing");
-		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,oPanel5);
-		
+				
 		////////////////  things for center ////////////
 		
 		////////////////     rooms part  ///////////////////
@@ -500,6 +511,326 @@ sap.ui.jsview("major1.rooms", {
 			content: [oForm2,oToolbar3]
 		}).addStyleClass("newSubject");
 		
+		///////////////////// batches part ///////////////////////
+		/////////////////////////////////////////////////////////
+		
+		var oTable3 = new sap.ui.table.Table("table3",{
+			title:"Batches",
+			visibleRowCount:10,
+			width:"40%",
+			navigationMode:sap.ui.table.NavigationMode.Paginator,
+			selectionMode:sap.ui.table.SelectionMode.Single
+		});
+		
+		oTable3.addColumn(new sap.ui.table.Column("tab3Col1",{
+			label: new sap.ui.commons.Label({text:"Name"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","name"),
+			sortProperty:"name",
+			filterProperty:"name"
+		}));
+		
+		oTable3.addColumn(new sap.ui.table.Column("tab3Col2",{
+			label: new sap.ui.commons.Label({text:"Semester"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","semester"),
+			sortProperty:"semester",
+			filterProperty:"semester"
+		}));
+		
+		oTable3.addColumn(new sap.ui.table.Column("tab3Col3",{
+			label: new sap.ui.commons.Label({text:"Branch"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","branch"),
+			sortProperty:"branch",
+			filterProperty:"branch"
+		}));
+				
+		var oModel3 = new sap.ui.model.json.JSONModel();		
+		oModel3.refresh(true);
+		oTable3.setModel(oModel3);
+		oTable3.bindRows("/modelData");
+				
+		var oToolbar1 = new sap.ui.commons.Toolbar("tb1Batch",{width:"40%"});
+		oToolbar1.setDesign(sap.ui.commons.ToolbarDesign.Standard);
+		
+		var button = new sap.ui.commons.Button("editBatchBtn",{
+						text:"Edit",
+						icon: "sap-icon://edit",
+						press: oController.editBatch
+					});
+		var button2 = new sap.ui.commons.Button("deleteBatchBtn",{
+						text:"Delete",
+						icon: "sap-icon://delete",
+						press: oController.deleteBatch
+					});
+		oToolbar1.addItem(button);
+		oToolbar1.addItem(button2);
+		oToolbar1.addStyleClass("toolbar_color");
+		
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("batchTable",{
+			content: [oTable3,oToolbar1]
+		}).addStyleClass("table1");
+		
+		//// batch subjects table ///////
+		
+		var oTable4 = oTable2.clone("4");
+		oTable4.setTitle("Batch's Subjects");
+		oTable4.setWidth("90%");
+		oTable4.setVisibleRowCount(6);
+		oTable4.removeColumn("tab2Col4-4");
+		oTable4.setNavigationMode(sap.ui.table.NavigationMode.Scrollbar);
+		var oModel4 = new sap.ui.model.json.JSONModel();		
+		oModel4.refresh(true);
+		oTable4.setModel(oModel4);
+		oTable4.bindRows("/modelData");
+				
+		var oToolbar1 = new sap.ui.commons.Toolbar("tb4Sub",{width:"90%"});
+		oToolbar1.setDesign(sap.ui.commons.ToolbarDesign.Standard);
+		
+		var button = new sap.ui.commons.Button("addBatchSubBtn",{
+						text:"Add subjects",
+						icon: "sap-icon://add",
+						press: oController.addBatchSubject
+					});
+		var button2 = new sap.ui.commons.Button("deleteBatchSubBtn",{
+						text:"Delete subject",
+						icon: "sap-icon://delete",
+						press: oController.deleteBatchSubject
+					});
+		oToolbar1.addItem(button);
+		oToolbar1.addItem(button2);
+		oToolbar1.addStyleClass("toolbar_color");
+		
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("batchSubjectTable",{
+			content: [oTable4,oToolbar1]
+		}).addStyleClass("table4");
+		
+		///////////// add subjects to batch table ////////
+		
+		var oTable5 = oTable2.clone("5");
+		oTable5.setTitle("Pick Subjects");
+		oTable5.setWidth("100%");
+		oTable5.setVisibleRowCount(6);
+		oTable5.setNavigationMode(sap.ui.table.NavigationMode.Scrollbar);
+		//oTable5.removeColumn("tab2Col5-5");
+		var oModel5 = new sap.ui.model.json.JSONModel();
+		oModel5.refresh(true);
+		oTable5.setModel(oModel5);
+		oTable5.bindRows("/modelData");
+		
+		var oToolbar1 = new sap.ui.commons.Toolbar("tb5Sub",{width:"100%"});
+		oToolbar1.setDesign(sap.ui.commons.ToolbarDesign.Standard);
+		
+		var button = new sap.ui.commons.Button("addBatchSubBtn1",{
+						text:"Add",
+						icon: "sap-icon://add",
+						press: oController.addBatchSubject1
+					});
+		oToolbar1.addItem(button);
+		oToolbar1.addStyleClass("toolbar_color");
+		
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("batchAddSubjectTable",{
+			content: [oTable5,oToolbar1]
+		}).addStyleClass("table5");
+		
+		///////////////  edit batch (form and toolbar) ////////////
+		var oLayout1 = new sap.ui.layout.form.GridLayout("L3", {singleColumn: true});
+		var oFormId = "F1Batch";
+		var oFormContainerId = "formC1Batch";
+		var oForm1 = new sap.ui.layout.form.Form(oFormId,{
+			title: new sap.ui.core.Title({text: "Edit Batch"}),
+			width: "300px",
+			layout: oLayout1,
+			formContainers: [
+				new sap.ui.layout.form.FormContainer(oFormContainerId,{
+					formElements: [						
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Batch Name",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Semester",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [
+								// Create a DropdownBox
+								new sap.ui.commons.DropdownBox("DropdownBox1Batch",{
+									layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+								.setTooltip("Semester")
+								.setEditable(true)
+								.setWidth("200px")
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("first")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("second")
+								)	
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("third")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("fourth")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("fifth")
+								)	
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("sixth")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("seventh")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("eighth")
+								)
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Branch",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [
+								// Create a DropdownBox
+								new sap.ui.commons.DropdownBox("DropdownBox2Batch",{
+									layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+								.setTooltip("Branch")
+								.setEditable(true)
+								.setWidth("200px")
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("cse")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("ece")
+								)	
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("IT")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("biotech")
+								)
+							]
+						})
+					]
+				})
+			]
+		});
+		
+		var oToolbar2 = new sap.ui.commons.Toolbar("tb2Batch",{width:"300px"});
+		//oToolbar2.setDesign(sap.ui.commons.ToolbarDesign.Standard);		
+		var button = new sap.ui.commons.Button("updateBatchBtn",{
+						text:"Update",
+						icon: "sap-icon://save",
+						press: oController.updateEditBatch
+					});
+		var button2 = new sap.ui.commons.Button({
+						text:"Cancel",
+						icon: "sap-icon://decline",
+						press: oController.cancelEditBatch
+					});
+		oToolbar2.addItem(button);
+		oToolbar2.addItem(button2);
+		oForm1.setTitle("Edit Batch");
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("editBatchForm",{
+			content: [oForm1,oToolbar2]
+		}).addStyleClass("editRoom");
+
+		/////// new batch (prev. form, new toolbar, new layout) /////
+		
+		var oToolbar3 = new sap.ui.commons.Toolbar("tb3Batch",{width:"300px"});		
+		var button = new sap.ui.commons.Button("newBatchBtn",{
+						text:"Add",
+						icon: "sap-icon://save",
+						press: oController.addNewBatch
+					});
+		var button2 = new sap.ui.commons.Button({
+						text:"Cancel",
+						icon: "sap-icon://decline",
+						press: oController.cancelNewBatch
+					});
+		oToolbar3.addItem(button);
+		oToolbar3.addItem(button2);		
+		oToolbar3.addStyleClass("toolbar3Spacing");
+		var oFormId = "F2Batch";
+		var oFormContainerId = "formC2Batch";
+		var oForm2 = oForm1.clone("2");
+		oForm2.setTitle("New Batch");
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("newBatchForm",{
+			content: [oForm2,oToolbar3]
+		}).addStyleClass("newBatch");
+		
+		//////////////////// course preferences ///////////////////
+		///////////////////////////////////////////////////////////
+		
+		var oTable6 = oTable2.clone("6");
+		oTable6.setTitle("Course preferences");
+		oTable6.setWidth("80%");
+		oTable6.setVisibleRowCount(5);
+		oTable6.setNavigationMode(sap.ui.table.NavigationMode.Scrollbar);
+		//oTable6.removeColumn("tab2Col1-6");
+		//oTable6.removeColumn("tab2Col5-6");
+		
+		oTable6.addColumn(new sap.ui.table.Column("tab2Col7",{
+			label: new sap.ui.commons.Label({text:"Options"}),
+			template: new sap.ui.commons.SegmentedButton({
+				id:"prefOptions",
+				buttons:[
+					new sap.ui.commons.Button({
+						icon:"sap-icon://navigation-up-arrow",
+						//iconHovered:"images/sb/list_hover.png",
+						iconSelected:"sap-icon://navigation-up-arrow",
+						tooltip:"move up"
+					}),
+					new sap.ui.commons.Button({
+						icon:"sap-icon://navigation-down-arrow",
+						//iconHovered:"images/sb/list_hover.png",
+						iconSelected:"sap-icon://navigation-down-arrow",
+						tooltip:"move down"
+					}),
+					new sap.ui.commons.Button({
+						icon:"sap-icon://sys-cancel",
+						//iconHovered:"images/sb/list_hover.png",
+						iconSelected:"sap-icon://sys-cancel",
+						tooltip:"remove"
+					})
+				]
+			}).attachSelect(oController.prefChangeBtn)
+		}));
+		var oModel6 = new sap.ui.model.json.JSONModel();
+		oModel6.refresh(true);
+		oTable6.setModel(oModel6);
+		oTable6.bindRows("/modelData");
+		oTable6.addStyleClass("table1");
+		
+		/////// choose subjects from this table ////////
+	
+		var oTable7 = oTable2.clone("7");
+		oTable7.setTitle("Pick Subjects");
+		oTable7.setWidth("80%");
+		oTable7.setVisibleRowCount(8);
+		oTable7.setNavigationMode(sap.ui.table.NavigationMode.Paginator);
+		
+		var oModel7 = new sap.ui.model.json.JSONModel();
+		oModel7.refresh(true);
+		oTable7.setModel(oModel7);
+		oTable7.bindRows("/modelData");
+		oTable7.addStyleClass("table1_down");
 	} // createContent
 
 });

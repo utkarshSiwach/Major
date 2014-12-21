@@ -1,0 +1,82 @@
+.table1 {
+	position:absolute;
+	left:7%;
+	top:30px;
+}
+
+.table1_down {
+	position:absolute;
+	left:7%;
+	top:80px;
+}
+
+.table4 {
+	position:absolute;
+	left:52%;
+	top:50px;
+}
+
+.table5 {
+	position:absolute;
+	left:48%;
+	top:340px;
+}
+
+.layoutBegin {
+		border-right: 1px solid black;
+		background-color: rgb(216,235,245);
+}
+.toolbar_color {
+	background-color: rgb(216,235,245) !important;
+}
+
+.panelSpacing {
+	margin-top:10px;
+}
+.toolbar3Spacing {
+	margin-top:10px !important;
+}
+
+.newsButtons {
+	width:130px;
+}
+
+.editRoom {
+position: absolute;
+z-index:2;
+left: 30%;
+top: 25%;
+background-color: aqua;
+border: solid 2px purple;
+width: 300px;
+}
+
+.newRoom {
+position: absolute;
+left: 10%;
+top: 15%;
+background-color: aqua;
+border: solid 2px purple;
+width: 500px;
+height: 250px;
+}
+
+.newSubject {
+position: absolute;
+left: 10%;
+top: 15%;
+background-color: aqua;
+border: solid 2px purple;
+width: 450px;
+height: 300px;
+}
+
+.newBatch {
+position: absolute;
+left: 10%;
+top: 15%;
+background-color: aqua;
+border: solid 2px purple;
+width: 400px;
+height: 230px;
+}

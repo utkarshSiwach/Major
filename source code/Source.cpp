@@ -1,3 +1,16 @@
+#undef UNICODE
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <stdlib.h>
+#include <stdio.h>
+// Need to link with Ws2_32.lib
+#pragma comment (lib, "Ws2_32.lib")
+// #pragma comment (lib, "Mswsock.lib")
+#define DEFAULT_BUFLEN 512
+#define DEFAULT_PORT "27015"
+
 #include<iostream>
 #include<string>
 #include<unordered_map>
@@ -27,7 +40,7 @@ public:
 	static Teachers* findTeacher(int);
 	void display();
 };
-int Teachers::maxTeachingHours = 16;
+int Teachers::maxTeachingHours = 30;
 
 class Subjects {
 public:
@@ -229,11 +242,13 @@ int Teachers::assignSubjects() {
 			// first find a teacher who is of the same dept.
 			// and is free for more subjects
 			int i = it->second;
-			int j=0;
-			Subjects * tempSub = Subjects::findSubject(it->first);
+			int j=0;		
+			Subjects *tempSub= Subjects::findSubject(it->first);
 			Teachers * tempT;
-			int loops = (Teachers::maxTeachingHours/tempSub->hours)+1;	// no. of times to loop around looking for a teacher
+			int loops = (Teachers::maxTeachingHours/(tempSub->hours))+1;	// no. of times to loop around looking for a teacher
+			
 			while(i>0 && loops>0) {	// i instances of this subjects remain, to be allocated		
+			
 				tempT=teacherVector[j];
 				if(tempT->dept == tempSub->branch && tempT->hrsCurrentlyTeaching < Teachers::maxTeachingHours) {
 					i--;
@@ -243,15 +258,17 @@ int Teachers::assignSubjects() {
 				}
 				j++;	// select next teacher in circular array fashion
 				if(j==teacherVector.size() ) {j=0; loops--;}
+				
 			}
 			if(i>0) {
 				// no more teachers available to teach that subject
 				// raise exception!!
 				// either make one teacher teach more or club few batches together
-				return 1;	// function failed
+				// return 1;	// function failed
 			}
 		}
 	}
+	
 	return 0;	// all allocation done
 }
 
@@ -284,6 +301,7 @@ int Teachers::assignBatches() {
 			}
 		}
 	}
+	return 0;
 }
 
 ////////////
@@ -422,10 +440,10 @@ int Batches::groupBatchesForLectures() {
 		}
 		sameSubs[allSubs].push_back(batch);	// add entry (unique list of Subjects -> batches taking them)
 	}
-	int aa = 1;
+	//int aa = 1;
 	for(auto it = sameSubs.begin(); it!=sameSubs.end(); it++) {
-		cout<<"\naa:"<<aa;
-		aa++;
+		//cout<<"\naa:"<<aa;
+		//aa++;
 		list<Batches*> tempL = it->second;
 		for(int i=0;tempL.size()>=3;i++) {
 			Batches* curBatch = tempL.front();
@@ -434,11 +452,11 @@ int Batches::groupBatchesForLectures() {
 			
 			newBatch->id.push_back(curBatch->id[0]);
 			newBatch->name = curBatch->name;
-			int bb=1;
+			//int bb=1;
 			for(auto it1 = curBatch->subjectArr.begin();it1!=curBatch->subjectArr.end();it1++) {  // remove lecture from indi. batch
-				cout<<" "<<bb;
-				bb++;				
-				cout<<(*it1)->name;
+				//cout<<" "<<bb;
+				//bb++;				
+				//cout<<(*it1)->name;
 				if((*it1)->type == "lecture") {					
 					curBatch->subjectArr.erase(it1);
 					it1--;
@@ -452,7 +470,7 @@ int Batches::groupBatchesForLectures() {
 			newBatch->id.push_back(curBatch->id[0]);
 			newBatch->name += curBatch->name;
 			for(auto it1 = curBatch->subjectArr.begin();it1!=curBatch->subjectArr.end();it1++) {  // remove lecture from indi. batch
-				cout<<(*it1)->name;
+				//cout<<(*it1)->name;
 				if((*it1)->type == "lecture") {					
 					curBatch->subjectArr.erase(it1);
 					it1--;
@@ -470,7 +488,7 @@ int Batches::groupBatchesForLectures() {
 			newBatch->sem = curBatch->sem;
 			newBatch->type = curBatch->type;
 			for(auto it1 = curBatch->subjectArr.begin();it1!=curBatch->subjectArr.end();it1++) {  // populate subjectArr
-				cout<<(*it1)->name;
+				//cout<<(*it1)->name;
 				if((*it1)->type == "lecture") {
 					//to be done only once {
 					newBatch->subjectArr.push_back(*it1);
@@ -490,7 +508,7 @@ int Batches::groupBatchesForLectures() {
 		}
 
 	}
-
+	return 0;
 }
 
 int Batches::batchSemToInt(string sem) {
@@ -625,18 +643,27 @@ int TT_COUNT = 0;
 const int ROOM_SIZE = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 + LAB_SIZE; 
 const int PERIODS = 10;
 
+int **table;
+list<Slots*> placedSlots; // move elements here once inserted into tt
+
 void generateTable (list<Slots*> slotList) {
 	
-	int table[PERIODS][ROOM_SIZE] = {0}; //  row i : mon (9-5)-sat (9 -1)  , column j : (0-9 tut) (10 - 29 class1) (30 - 49 class2) ( PERIODS - 59 labs)
-
 	int i = 0; 
 	int a = TUT_SIZE, b = TUT_SIZE + CLASS_SIZE1, c = 0, d = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2; // a : class1 pos, b : class2 pos, c : tut pos, d: lab pos
 
 	int lab[PERIODS][LAB_SIZE] = {0}; // stores number of batches per lab, per hour
 	int e = 0;
-
-	list<Slots*> placedSlots; // move elements here once inserted into tt
-
+	
+	//int table[PERIODS][ROOM_SIZE] = {0}; //  row i : mon (9-5)-sat (9 -1)  , column j : (0-9 tut) (10 - 29 class1) (30 - 49 class2) ( PERIODS - 59 labs)	
+	
+	table = new int*[PERIODS];
+	for(int i=0;i<PERIODS;i++) {
+		table[i] = new int[ROOM_SIZE];
+		for(int j=0;j<ROOM_SIZE;j++) {
+			table[i][j]=0;
+		}
+	}
+	
 	list<Slots*>::iterator it;
 	it = slotList.begin();
 	std::cout<<"Generating Timetable....\n";
@@ -645,7 +672,7 @@ void generateTable (list<Slots*> slotList) {
 
 	do {
 
-		std::cout<<"at list head\n";
+		//std::cout<<"at list head\n";
 		a = TUT_SIZE;
 		b = TUT_SIZE + CLASS_SIZE1;
 		c = 0;
@@ -654,7 +681,7 @@ void generateTable (list<Slots*> slotList) {
 		do {
 			
 			if ((*it)->subject->type == "lecture") { /*subject-type = 'lecture'*/
-				std::cout<<"Lecture..\n";
+				//std::cout<<"Lecture..\n";
 				if ( (*it)->batch->id.size() < 3 ) { /*ls-size == 3*/
 					if ((table[i][a] == 0) && (a < TUT_SIZE + CLASS_SIZE1 )) {
 						
@@ -665,7 +692,7 @@ void generateTable (list<Slots*> slotList) {
 						list<Slots*>::iterator node;
 						node = it;
 						++it;
-						std::cout<<"Lecture placed.\n";
+						//std::cout<<"Lecture placed.\n";
 						slotList.remove((*node));
 
 					}
@@ -684,7 +711,7 @@ void generateTable (list<Slots*> slotList) {
 						list<Slots*>::iterator node;
 						node = it;
 						++it;
-						std::cout<<"Lecture placed.\n";
+						//std::cout<<"Lecture placed.\n";
 						slotList.remove((*node));
 					}
 					else {
@@ -697,7 +724,7 @@ void generateTable (list<Slots*> slotList) {
 
 			}
 			else if ((*it) -> subject -> type == "tut") { /*subject-type = 'tut'''*/
-				std::cout<<"Tut..\n";
+				//std::cout<<"Tut..\n";
 				if ((table[i][c] == 0) && (c < TUT_SIZE  )) {
 
 					table[i][c] = (*it) -> id;
@@ -707,7 +734,7 @@ void generateTable (list<Slots*> slotList) {
 					list<Slots*>::iterator node;
 					node = it;
 					++it;
-					std::cout<<"Tut placed\n";
+					//std::cout<<"Tut placed\n";
 					slotList.remove((*node));
 
 				}
@@ -718,7 +745,7 @@ void generateTable (list<Slots*> slotList) {
 				}
 			}
 			else {
-				std::cout<<"Lab.\n";
+				//std::cout<<"Lab.\n";				
 				if ((table[i][d] == 0) && (table[i + 1][d] == 0)  && (d < TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 + LAB_SIZE )) {
 					
 					lab[i][e] = lab[i][e] + 1; 
@@ -740,7 +767,7 @@ void generateTable (list<Slots*> slotList) {
 					list<Slots*>::iterator node;
 					node = it;
 					++it;
-					std::cout<<"Lab placed..\n";
+					//std::cout<<"Lab placed..\n";
 					slotList.remove((*node));
 				}
 				else {
@@ -753,24 +780,24 @@ void generateTable (list<Slots*> slotList) {
 
 		} while (it != slotList.end()); /*list of entities isn't traversed'*/
 		
-		std::cout <<"Done iterating for this slot\n";
+		//std::cout <<"Done iterating for this slot\n";
 		
 		it = slotList.begin();
 		//if ((*it) == NULL) flag = 1;
 
-		std::cout<<slotList.size()<<"\n";
+		//std::cout<<slotList.size()<<"\n";
 		++i;
-	} while (slotList.size() > 0 && i <= PERIODS  );
-
+	} while (slotList.size() > 0 && i < PERIODS  );
+	 
 	//std::cout << "Done iterating the timetable";
-	std::cout << "Displaying timetable\n";
-	TT_COUNT++;
-	for (int i =0 ; i < PERIODS ;i++) {
-		for (int j =0 ; j< ROOM_SIZE; j++) {
-			std::cout<<table[i][j]<<" ";
-		}
-		std::cout<<"\n";
-	}
+	//std::cout << "Displaying timetable\n";
+	//TT_COUNT++;
+	//for (int i =0 ; i < PERIODS ;i++) {
+	//	for (int j =0 ; j< ROOM_SIZE; j++) {
+	//		std::cout<<table[i][j]<<" ";
+	//	}
+	//	std::cout<<"\n";
+	//}
 	//std::system("PAUSE");
 	//fitnessFunc(table, slotList);
 }
@@ -778,8 +805,128 @@ void generateTable (list<Slots*> slotList) {
 
 //tt close
 
+int timeTableFunctions() {
+	int tempArr[5];
+	tempArr[0]=Subjects::fetchRecordsFromDB();
+	tempArr[1]=Batches::fetchRecordsFromDB();
+	tempArr[2]=Teachers::fetchRecordsFromDB();	
+	tempArr[3]=Students::fetchRecordsFromDB();
+	tempArr[4]=Rooms::fetchRecordsFromDB();
+	bool proceed = true;
+	for(int i:tempArr) {
+		if(i==0) proceed=false;
+	}
+	if(!proceed) {
+		cout<<"error some tables might be empty";
+		system("pause");
+		return 101;
+	}
+	Teachers::fetchSubjectsFromDB();
+	Batches::fetchSubjectsFromDB();	
+	Batches::groupBatchesForLectures();
+	int a = Teachers::assignSubjects();
+	Teachers::assignBatches();
+	
+	generateTable(slotList);
 
-int main() {
+	if(a!=0) {
+		return 102;
+	}
+	return 0;	// all went well
+}
+
+Slots* findSlot(int id) {
+	
+	for(auto it=placedSlots.begin();it!=placedSlots.end();it++) {
+		if((*it)->id == id) {
+			return (*it);
+		}
+	}
+	
+	return NULL;
+}
+int maxSizeOfAnyList(list<string>time[]) {
+	int max=0;
+	for(int i=0;i<8;i++) {
+		if(time[i].size()>max) max=time[i].size();
+	}
+	return max;
+}
+string convertToJSON() {
+	Slots * slot;
+	list<string> time[8];
+	for(int j=0;j<ROOM_SIZE;j++) {
+		for(int i=0;i<8;i++) {			
+			if(table[i][j] != 0) { // get a string of all the detals of the slot together
+				slot = findSlot(table[i][j]);
+				if(slot == NULL) {
+					cout<<"no slot matched:"<<table[i][j];
+				}				
+				string temp;
+				temp=temp+slot->batch->sem+","+slot->batch->name+","+
+					slot->subject->name+","+slot->teacher->name+","+to_string(j);
+				time[i].push_back(temp);
+			}			
+		}
+	}
+	
+	string sEmpty = "";
+	string tmp;
+	int m = maxSizeOfAnyList(time);
+	string monday;
+	monday+="\"monday\" : [ ";
+	if(m>0) {
+		tmp = (time[0].size() > 0)?time[0].front():sEmpty;
+		monday+=" { \"nine\" : \""+tmp+"\"";
+		tmp = (time[1].size() > 0)?time[1].front():sEmpty;
+		monday+=" , \"ten\" : \""+tmp+"\"";
+		tmp = (time[2].size() > 0)?time[2].front():sEmpty;
+		monday+=" , \"eleven\" : \""+tmp+"\"";
+		tmp = (time[3].size() > 0)?time[3].front():sEmpty;
+		monday+=" , \"twelve\" : \""+tmp+"\"";
+		tmp = (time[4].size() > 0)?time[4].front():sEmpty;
+		monday+=" , \"one\" : \""+tmp+"\"";
+		tmp = (time[5].size() > 0)?time[5].front():sEmpty;
+		monday+=" , \"two\" : \""+tmp+"\"";
+		tmp = (time[6].size() > 0)?time[6].front():sEmpty;
+		monday+=" , \"three\" : \""+tmp+"\"";
+		tmp = (time[7].size() > 0)?time[7].front():sEmpty;
+		monday+=" , \"four\" : \""+tmp+"\"";		
+		monday+=" } ";
+		for(int i=0;i<8;i++) {
+			if(time[i].size()>0) {
+				time[i].pop_front();
+			}
+		}
+	}
+	for(int i=1;i<m;i++) {
+		tmp = (time[0].size() > 0)?time[0].front():sEmpty;
+		monday+=" ,{ \"nine\" : \""+tmp+"\"";
+		tmp = (time[1].size() > 0)?time[1].front():sEmpty;
+		monday+=" , \"ten\" : \""+tmp+"\"";
+		tmp = (time[2].size() > 0)?time[2].front():sEmpty;
+		monday+=" , \"eleven\" : \""+tmp+"\"";
+		tmp = (time[3].size() > 0)?time[3].front():sEmpty;
+		monday+=" , \"twelve\" : \""+tmp+"\"";
+		tmp = (time[4].size() > 0)?time[4].front():sEmpty;
+		monday+=" , \"one\" : \""+tmp+"\"";
+		tmp = (time[5].size() > 0)?time[5].front():sEmpty;
+		monday+=" , \"two\" : \""+tmp+"\"";
+		tmp = (time[6].size() > 0)?time[6].front():sEmpty;
+		monday+=" , \"three\" : \""+tmp+"\"";
+		tmp = (time[7].size() > 0)?time[7].front():sEmpty;
+		monday+=" , \"four\" : \""+tmp+"\"";		
+		monday+=" } ";
+		for(int ii=0;ii<8;ii++) {
+			if(time[ii].size()>0) {
+				time[ii].pop_front();
+			}
+		}
+	}
+	monday+="]";
+	return monday;	
+}
+int main1() {
 
 	/*
 		a complete ordering needs to be maintained while calling fetch
@@ -842,4 +989,155 @@ int main() {
 
 	system("pause");
 	return 1;
+}
+
+int __cdecl main(void) {
+//#pragma region
+	WSADATA wsaData;
+    int iResult;
+
+    SOCKET ListenSocket = INVALID_SOCKET;
+    SOCKET ClientSocket = INVALID_SOCKET;
+
+    struct addrinfo *result = NULL;
+    struct addrinfo hints;
+
+    int iSendResult;
+    char recvbuf[DEFAULT_BUFLEN];
+    int recvbuflen = DEFAULT_BUFLEN;
+    
+    // Initialize Winsock
+    iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+    if (iResult != 0) {
+        printf("WSAStartup failed with error: %d\n", iResult);
+        return 1;
+    }
+
+    ZeroMemory(&hints, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_flags = AI_PASSIVE;
+
+    // Resolve the server address and port
+    iResult = getaddrinfo(NULL, DEFAULT_PORT, &hints, &result);
+    if ( iResult != 0 ) {
+        printf("getaddrinfo failed with error: %d\n", iResult);
+        WSACleanup();
+        return 1;
+    }
+
+    // Create a SOCKET for connecting to server
+    ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    if (ListenSocket == INVALID_SOCKET) {
+        printf("socket failed with error: %ld\n", WSAGetLastError());
+        freeaddrinfo(result);
+        WSACleanup();
+        return 1;
+    }
+
+    // Setup the TCP listening socket
+    iResult = bind( ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    if (iResult == SOCKET_ERROR) {
+        printf("bind failed with error: %d\n", WSAGetLastError());
+        freeaddrinfo(result);
+        closesocket(ListenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    freeaddrinfo(result);
+
+    iResult = listen(ListenSocket, SOMAXCONN);
+    if (iResult == SOCKET_ERROR) {
+        printf("listen failed with error: %d\n", WSAGetLastError());
+        closesocket(ListenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    // Accept a client socket
+    ClientSocket = accept(ListenSocket, NULL, NULL);
+    if (ClientSocket == INVALID_SOCKET) {
+        printf("accept failed with error: %d\n", WSAGetLastError());
+        closesocket(ListenSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    // No longer need server socket
+    closesocket(ListenSocket);
+//#pragma endregion
+    // Receive until the peer shuts down the connection
+    do {
+
+        iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
+        if (iResult > 0) {
+            printf("Bytes received: %d\n", iResult);
+			printf(" data: %s",recvbuf);
+
+			// form a response	
+			string respJSON="{ \"status\": ";			
+			
+			int status = timeTableFunctions();			
+			
+			if(status == 0) {
+				respJSON+= "\"ok\", \"error string\": \"no error\",";
+				respJSON+= convertToJSON();
+			}
+			else {
+				respJSON+= "\"error\", \"error string\": ";
+				if(status == 101) {
+					respJSON+="\"some tables are empty, cannot generate time table\"";
+				}
+				if(status == 102) {
+					respJSON+="\"some subjects were left unallocated\"";
+				}
+			}
+			respJSON+="}";
+			
+					
+			string resp = "HTTP/1.1 200 OK\r\nContent-type: text/html\r\n";
+			resp+="Access-Control-Allow-Origin: *\r\nContent-Length: "+to_string(respJSON.length())+"\r\n\r\n";
+			resp+=respJSON;
+			
+			iSendResult = send( ClientSocket, resp.c_str(),resp.length(), 0 );
+            if (iSendResult == SOCKET_ERROR) {
+                printf("send failed with error: %d\n", WSAGetLastError());
+                //closesocket(ClientSocket);
+                //WSACleanup();
+                //return 1;
+            }
+            printf("Bytes sent: %d\n", iSendResult);
+        }
+        else if (iResult == 0)
+            printf("Connection closing...\n");
+        else  {
+            printf("recv failed with error: %d\n", WSAGetLastError());
+            closesocket(ClientSocket);
+            WSACleanup();
+            return 1;
+        }
+
+    } while (iResult > 0);
+
+    // shutdown the connection since we're done
+    iResult = shutdown(ClientSocket, SD_SEND);
+    if (iResult == SOCKET_ERROR) {
+        printf("shutdown failed with error: %d\n", WSAGetLastError());
+        closesocket(ClientSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    // cleanup
+    closesocket(ClientSocket);
+    WSACleanup();
+
+    return 0;
+}
+
+void main11() {
+	int a =timeTableFunctions();
+	convertToJSON();
 }

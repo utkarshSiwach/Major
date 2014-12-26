@@ -80,3 +80,15 @@ border: solid 2px purple;
 width: 400px;
 height: 230px;
 }
+
+.updatePrefsBtn {
+position:absolute;
+left:710px;
+top:255px;
+}
+
+.allTimeTable {
+position:absolute;
+left:20px;
+top:20px;
+}

@@ -50,6 +50,9 @@ elseif($_POST['toDo'] == "addBatchSubject") {
 elseif($_POST['toDo'] == "displayPrefs") {
 	displayPrefs($_POST['id']);
 }
+elseif($_POST['toDo'] == "updatePrefs") {
+	updatePrefs($_POST['json']);
+}
 
 function displayRooms() {
 	global $con;
@@ -252,7 +255,7 @@ function addSubject() {
 
 function displayBatches() {
 	global $con;
-	$query="select BID,Name,Type,Sem,subjectId from batch left join batchSubjects"
+	$query="select BID,Name,Type,Sem,subjectId from batch left join batchsubjects"
 		." on BID = batchId";
 	$result = mysqli_query($con, $query) or die(mysqli_error($con));
 	echo "[";
@@ -359,7 +362,7 @@ function addBatchSubject($bid,$sid,$subType,$subCode) {
 
 function displayPrefs($id) {
 	global $con;
-	$query="select preference,subjectId from teacherSubjects where teacherId = $id order by preference";
+	$query="select preference,subjectId from teachersubjects where teacherId = $id order by preference";
 	$result = mysqli_query($con, $query) or die(mysqli_error($con));
 	echo "[";
 	$row=mysqli_fetch_array($result);
@@ -370,5 +373,22 @@ function displayPrefs($id) {
 		echo ',{"prefNum":"'.$row['preference'].'","subId":"'.$row['subjectId'].'"}';
 	}
 	echo "]";
+}
+
+function updatePrefs($json) {
+	global $con;
+	$obj = json_decode($json,true);
+	if (count($obj) == 0) {
+		die();
+	}
+	$id = $obj[0]["id"];
+	$query="delete from teachersubjects where teacherId=$id";
+	mysqli_query($con,$query) or die(mysqli_error($con));
+	$str='('.$obj[0]["id"].','.$obj[0]["prefNum"].','.$obj[0]["subId"].')';
+	for($i=1;$i<count($obj);$i++) {
+		$str=$str.',('.$obj[$i]["id"].','.$obj[$i]["prefNum"].','.$obj[$i]["subId"].')';
+	}
+	$query='insert into teachersubjects values '.$str;
+	mysqli_query($con,$query) or die(mysqli_error($con));
 }
 ?>

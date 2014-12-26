@@ -180,7 +180,30 @@ sap.ui.controller("major1.rooms", abc={
 					sap.ui.getCore().byId("table2-6"));
 				layout.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.center,				
 					sap.ui.getCore().byId("table2-7"));
+				layout.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.center,				
+					sap.ui.getCore().byId("updatePrefsBtn"));
 			}
+		}
+		else if(toDo ==="View Timetable") {		
+			var controls = layout.getContent("center");
+			if(controls.length!=0 && controls[0].sId === "allTimeTable") {
+				layout.removeAllContent("center");
+			}
+			else {
+				layout.removeAllContent("center");
+				layout.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.center,				
+					sap.ui.getCore().byId("allTimeTable"));
+			}
+		}
+		else if(toDo ==="Create Timetable") {			
+			$.ajax({
+				url:"http://127.0.0.1:27015",
+				type:"POST",
+				success:function(data) {
+					var ttJSON = JSON.parse(data);
+					sap.ui.getCore().byId("tableT1").getModel().setData({modelData:ttJSON.monday});
+				}
+			});
 		}
 	},
 	
@@ -952,7 +975,7 @@ sap.ui.controller("major1.rooms", abc={
 	// also have to add update btn
 	prefChangeBtn: function(oEvent){
 		var btn = oEvent.getSource();
-		var id = btn.getId().substring(20);
+		var id = parseInt(btn.getBindingContext().sPath.substring(11));
 		var model1 = sap.ui.getCore().byId("table2-6").getModel();
 		var model2 = sap.ui.getCore().byId("table2-7").getModel();
 		var arr = model1.getData().modelData;
@@ -974,6 +997,56 @@ sap.ui.controller("major1.rooms", abc={
 		}
 		model1.setData({modelData:arr});
 		btn.setSelectedButton();		
+	},
+	
+	addPrefSubject: function(oEvent) {
+		var btn = oEvent.getSource();
+		var id = btn.getId().substring(20);
+		var model1 = sap.ui.getCore().byId("table2-6").getModel();
+		if(model1.getData().modelData.length >= 5) {
+			// no more additions possible
+			btn.setSelectedButton();
+			return 0;
+		}
+		var model2 = sap.ui.getCore().byId("table2-7").getModel();
+		var arr = model1.getData().modelData;
+		var arr2 = model2.getData().modelData;
+		var tmp = arr2.splice(id,1);
+		arr.push(tmp[0]);
+		model2.setData({modelData:arr2});
+		model1.setData({modelData:arr});
+		btn.setSelectedButton();
+	},
+	
+	updatePrefs: function(oEvent) {
+		var data = [];
+		var arr = sap.ui.getCore().byId("table2-6").getModel().getData().modelData;
+		for(var i=0;i<arr.length;i++) {
+			var item = {
+				id:userId,
+				prefNum:(i+1),
+				subId:arr[i].id
+			};
+			data.push(item);
+		}
+		var sendStr = {
+			toDo:"updatePrefs",
+			json:JSON.stringify(data)
+		};
+		$.ajax({
+			url:"./major1/getRooms.php",
+			type:"POST",
+			data:sendStr,
+			success: function(data2) {
+				if(data2 === "login first") { alert(data2);}
+				else {
+					alert("done");
+				}
+			},
+			failure: function() {
+				alert("some error in updation");
+			}			
+		});
 	},
 /**
 * Similar to onAfterRendering, but this hook is invoked before the controller's View is re-rendered

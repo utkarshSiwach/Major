@@ -145,7 +145,8 @@ sap.ui.jsview("major1.rooms", {
 		oPanel4.addContent(oLayoutVertical);		
 		oPanel4.addStyleClass("panelSpacing");
 		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,oPanel4);
-				
+		
+		/////////////////////////////////////////////////
 		////////////////  things for center ////////////
 		
 		////////////////     rooms part  ///////////////////
@@ -824,13 +825,141 @@ sap.ui.jsview("major1.rooms", {
 		oTable7.setTitle("Pick Subjects");
 		oTable7.setWidth("80%");
 		oTable7.setVisibleRowCount(8);
-		oTable7.setNavigationMode(sap.ui.table.NavigationMode.Paginator);
+		oTable7.setNavigationMode(sap.ui.table.NavigationMode.Scrollbar);
+		
+		oTable7.addColumn(new sap.ui.table.Column("ll",{
+			label: new sap.ui.commons.Label({text:"Add"}),
+			template: new sap.ui.commons.SegmentedButton({
+				id:"addPrefSubj",
+				buttons:[
+					new sap.ui.commons.Button({
+						lite:true,
+						icon:"sap-icon://sys-add",						
+						tooltip:"add"
+					})
+				]
+			}).attachSelect(oController.addPrefSubject)
+		}));
 		
 		var oModel7 = new sap.ui.model.json.JSONModel();
 		oModel7.refresh(true);
 		oTable7.setModel(oModel7);
 		oTable7.bindRows("/modelData");
 		oTable7.addStyleClass("table1_down");
+		
+		var btn = new sap.ui.commons.Button("updatePrefsBtn",{
+			text:"Update preferences",
+			press:oController.updatePrefs
+		}).addStyleClass("updatePrefsBtn");
+		
+		/////////////////////////////////////////////////
+		////////////////// Time Table ///////////////////
+		
+		var oTableT1 = new sap.ui.table.Table("tableT1",{
+			title:"Monday",
+			visibleRowCount:5,
+			width:"100%",
+			selectionMode:sap.ui.table.SelectionMode.Single
+		});
+		
+		oTableT1.addColumn(new sap.ui.table.Column("tabTCol1",{
+			label: new sap.ui.commons.Label({text:"9-10"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","nine")
+		}));
+		
+		oTableT1.addColumn(new sap.ui.table.Column("tabTCol2",{
+			label: new sap.ui.commons.Label({text:"10-11"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","ten")
+		}));
+		
+		oTableT1.addColumn(new sap.ui.table.Column("tabTCol3",{
+			label: new sap.ui.commons.Label({text:"11-12"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","eleven")
+		}));
+		
+		oTableT1.addColumn(new sap.ui.table.Column("tabTCol4",{
+			label: new sap.ui.commons.Label({text:"11-12"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","twelve")
+		}));
+		
+		oTableT1.addColumn(new sap.ui.table.Column("tabTCol5",{
+			label: new sap.ui.commons.Label({text:"12-1"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","one")
+		}));
+		
+		oTableT1.addColumn(new sap.ui.table.Column("tabTCol6",{
+			label: new sap.ui.commons.Label({text:"1-2"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","two")
+		}));
+		
+		oTableT1.addColumn(new sap.ui.table.Column("tabTCol7",{
+			label: new sap.ui.commons.Label({text:"2-3"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","three")
+		}));
+		
+		oTableT1.addColumn(new sap.ui.table.Column("tabTCol8",{
+			label: new sap.ui.commons.Label({text:"3-4"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","four")
+		}));
+				
+		oTableT1.addColumn(new sap.ui.table.Column("tabTCol9",{
+			label: new sap.ui.commons.Label({text:"4-5"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","five")
+		}));
+		oTableT1.addStyleClass("panelSpacing");
+		var oModel = new sap.ui.model.json.JSONModel();		
+		oModel.refresh(true);
+		oTableT1.setModel(oModel);
+		oTableT1.bindRows("/modelData");		
+		
+		//var dat = '[{"nine":"1,b1b2b3,operating system lecture,Utkarsh Siwach","ten":"werwer"}]';
+		//var da = JSON.parse(dat);
+		//oModel.setData({modelData:da});
+		
+		var oTable2 = oTableT1.clone("2");
+		oTable2.setTitle("Tuesday");
+		oTable2.addStyleClass("panelSpacing");
+		oModel = new sap.ui.model.json.JSONModel();		
+		oModel.refresh(true);
+		oTable2.setModel(oModel);
+		oTable2.bindRows("/modelData");
+		
+		var oTable3 = oTableT1.clone("3");
+		oTable3.setTitle("Wednesday");
+		oTable3.addStyleClass("panelSpacing");
+		oModel = new sap.ui.model.json.JSONModel();		
+		oModel.refresh(true);
+		oTable3.setModel(oModel);
+		oTable3.bindRows("/modelData");
+		
+		var oTable4 = oTableT1.clone("4");
+		oTable4.setTitle("Thursday");
+		oTable4.addStyleClass("panelSpacing");
+		oModel = new sap.ui.model.json.JSONModel();		
+		oModel.refresh(true);
+		oTable4.setModel(oModel);
+		oTable4.bindRows("/modelData");
+		
+		var oTable5 = oTableT1.clone("5");
+		oTable5.setTitle("Friday");
+		oTable5.addStyleClass("panelSpacing");
+		oModel = new sap.ui.model.json.JSONModel();		
+		oModel.refresh(true);
+		oTable5.setModel(oModel);
+		oTable5.bindRows("/modelData");
+		
+		var oTable6 = oTableT1.clone("6");
+		oTable6.setTitle("Saturday");
+		oTable6.addStyleClass("panelSpacing");
+		oModel = new sap.ui.model.json.JSONModel();		
+		oModel.refresh(true);
+		oTable6.setModel(oModel);
+		oTable6.bindRows("/modelData");
+		
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("allTimeTable",{
+			content: [oTableT1,oTable2,oTable3,oTable4,oTable5,oTable6]
+		}).addStyleClass("allTimeTable");
+		
 	} // createContent
 
 });

@@ -3,8 +3,6 @@
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <stdlib.h>
-#include <stdio.h>
 // Need to link with Ws2_32.lib
 #pragma comment (lib, "Ws2_32.lib")
 // #pragma comment (lib, "Mswsock.lib")
@@ -12,17 +10,21 @@
 #define DEFAULT_PORT "27015"
 
 #include<iostream>
+#include<stdlib.h>
+#include<stdio.h>
+#include<time.h>
 #include<string>
+#include<vector>
 #include<unordered_map>
 #include "MySqlCon.h"
 
-using namespace std;
 
+using namespace std;
 class Teachers;
 class Subjects;
 class Batches;
 class Students;
-
+class Slots;
 class Teachers {
 public:
 	int id;
@@ -30,7 +32,7 @@ public:
 	string dept;
 	int hrsCurrentlyTeaching;
 	// in prefferedSubjects first one is most preferred,last one - least
-	vector<Subjects *> allocatedSubjects,preferredSubjects;	
+	vector<Subjects *> allocatedSubjects,preferredSubjects;
 	vector<Batches *> allocatedBatches;
 	static int maxTeachingHours;
 	static int fetchRecordsFromDB();
@@ -40,27 +42,23 @@ public:
 	static Teachers* findTeacher(int);
 	void display();
 };
-int Teachers::maxTeachingHours = 30;
-
+int Teachers::maxTeachingHours = 16;
 class Subjects {
 public:
 	int id;
+	string name;	
 	string code;
-	string name;
 	string type;
 	string year;
 	int hours;
 	string branch;
-
 	// will be incremented by Batches::fetchSubjectsFromDB()
 	int numOfBatchesTakingIt;
-
 	static int maxPreferencesAllowed;
-
-	// unordered map from (subjectId -> numOfAllocsLeft) to check if a 
+	// unordered map from (subjectId -> numOfAllocsLeft) to check if a
 	// subject can still be allocated to a teacher
 	// 0 for every instance allocated, >0 for number of possible allocations left
-	// Used be Teachers::assignSubjects(), initialized by Subjects::initializeMap()
+	// Used by Teachers::assignSubjects(), initialized by Subjects::initializeMap()
 	static unordered_map<int,int> subjectsAllocated;
 	static int fetchRecordsFromDB();
 	static void initializeMap();
@@ -69,7 +67,6 @@ public:
 };
 int Subjects::maxPreferencesAllowed = 5;
 unordered_map<int,int> Subjects::subjectsAllocated;
-
 class Batches {
 public:
 	vector<int> id;
@@ -81,30 +78,26 @@ public:
 	void display();
 	static int fetchRecordsFromDB();
 	static int fetchSubjectsFromDB();
-	static int batchSemToInt(string);
 	static int groupBatchesForLectures();
 	static Batches* findBatch(int);
 };
-
 class Students {
 public:
 	int id;
 	string name;
-	int batchId;	
+	int batchId;
 	void display();
 	static int fetchRecordsFromDB();
 };
-
 class Rooms {
 public:
 	int id;
-	string name;	
+	string name;
 	int capacity;
 	string type;
 	void display();
 	static int fetchRecordsFromDB();
 };
-
 class Slots {
 public:
 	int id;
@@ -112,25 +105,23 @@ public:
 	Teachers * teacher;
 	Subjects * subject;
 };
-
 std::vector<Batches*> batchVector;
 std::vector<Teachers*> teacherVector;
 std::vector<Subjects*> subjectVector;
 std::vector<Students*> studentVector;
 std::vector<Rooms*> roomVector;
-std::list<Slots*> slotList;	// it is populated by Teachers::assignBatches()
-
+std::list<Slots*> slotList; // it is populated by Teachers::assignBatches()
 int Teachers::fetchRecordsFromDB() {
 	MySqlDatabase oDB;
 	if(!oDB.createConn()) {
-		return 0;	// some exception occoured
+		return 0; // some exception occoured
 	}
 	ResultSet *rs = oDB.execute("select * from teachers");
 	int n = rs->rowsCount();
 	if(n==0) {
 		return 0;
 	}
-	Teachers *temp;	
+	Teachers *temp;
 	while(rs->next()) {
 		temp= new Teachers();
 		temp->id = rs->getInt(1);
@@ -142,7 +133,6 @@ int Teachers::fetchRecordsFromDB() {
 	delete rs;
 	return 1;
 }
-
 // fetches preffered subjects from DB and fills the
 // prefferedSubjects vector of each teacher
 // it is essential that Teachers::fetchRecordsFromDB()
@@ -158,7 +148,6 @@ int Teachers::fetchSubjectsFromDB() {
 	}
 	ResultSet *rs = oDB.execute("select * from teacherSubjects order by teacherId,preference");
 	int teacherId,subjectId;
-	
 	Teachers *curTeacher=teacherVector[0];
 	Subjects *subject=subjectVector[0];
 	while(rs->next()) {
@@ -172,8 +161,7 @@ int Teachers::fetchSubjectsFromDB() {
 	delete rs;
 	return 1;
 }
-
-// finds and returns a Teachers *  from teacherVector
+// finds and returns a Teachers * from teacherVector
 // whose id matches with the argument given
 // if no match is found returns NULL
 Teachers* Teachers::findTeacher(int id) {
@@ -183,9 +171,8 @@ Teachers* Teachers::findTeacher(int id) {
 			return teacherVector[i];
 		}
 	}
-	return NULL;	// not found
+	return NULL; // not found
 }
-
 // fills the allocatedSubjects vector of teachers
 // by looking up preferredSubjects of each teacher
 // allocating the first preferences of each teacher if not already taken.
@@ -207,10 +194,10 @@ int Teachers::assignSubjects() {
 			if(prefNum>=teacher->preferredSubjects.size()) {
 				break;
 			}
-			else {	// there are prefereed subjects left for this teacher
+			else {	// there are preferred subjects left for this teacher
 				tempSub=teacher->preferredSubjects[i];
 				if(Subjects::subjectsAllocated[tempSub->id]!=0 && 
-				 teacher->hrsCurrentlyTeaching < Teachers::maxTeachingHours) {
+					(teacher->hrsCurrentlyTeaching+tempSub->hours) <= Teachers::maxTeachingHours) {
 					Subjects::subjectsAllocated[tempSub->id]--;
 					teacher->hrsCurrentlyTeaching+=tempSub->hours;
 					teacher->allocatedSubjects.push_back(tempSub);
@@ -250,7 +237,7 @@ int Teachers::assignSubjects() {
 			while(i>0 && loops>0) {	// i instances of this subjects remain, to be allocated		
 			
 				tempT=teacherVector[j];
-				if(tempT->dept == tempSub->branch && tempT->hrsCurrentlyTeaching < Teachers::maxTeachingHours) {
+				if(tempT->dept == tempSub->branch && (tempT->hrsCurrentlyTeaching+tempSub->hours) <= Teachers::maxTeachingHours) {
 					i--;
 					it->second--;
 					tempT->hrsCurrentlyTeaching+=tempSub->hours;
@@ -271,7 +258,6 @@ int Teachers::assignSubjects() {
 	
 	return 0;	// all allocation done
 }
-
 // for every subject a batch is taking, find a teacher taking it
 // and assign him/her to that batch.
 // Also add this combination of (teacher-batch-subject) to slotList
@@ -279,20 +265,44 @@ int Teachers::assignSubjects() {
 int Teachers::assignBatches() {
 	bool done=false;
 	Slots * slot;
+	
+	int **alreadyMatched = new int*[teacherVector.size()];
+	for(int i=0;i<teacherVector.size();i++) {
+		alreadyMatched[i] = new int[Teachers::maxTeachingHours+1];
+		for(int j=0;j<Teachers::maxTeachingHours+1;j++) {
+			alreadyMatched[i][j]=0;
+		}
+	}
+
 	for(Batches * batch : batchVector) {
 		for(Subjects * subject : batch->subjectArr) {
 			done=false;
+			int tNum=-1;
 			for(Teachers * teacher : teacherVector) {
+				tNum++;
 				if(teacher->dept != subject->branch) { continue; }
+				int subNum=-1;
 				for(Subjects *tempSub : teacher->allocatedSubjects) {
-					if(tempSub==subject) {
+					subNum++;
+					if(tempSub==subject && alreadyMatched[tNum][subNum]!=1) {
 						teacher->allocatedBatches.push_back(batch);
-						slot = new Slots();
-						slot->id = slotList.size()+1;
-						slot->batch = batch;
-						slot->subject = tempSub;
-						slot->teacher = teacher;
-						slotList.push_back(slot);
+						int slotNos=1;	// number of slots to make, =1 works for tut
+						if(tempSub->type=="lecture") {
+							slotNos=tempSub->hours;
+						}
+						else if(tempSub->type=="lab") {
+							slotNos=tempSub->hours/2;
+							slotNos+=tempSub->hours%2;
+						}
+						for(int i=0;i<slotNos;i++) {
+							slot = new Slots();
+							slot->id = slotList.size() + 1;
+							slot->batch = batch;
+							slot->subject = tempSub;
+							slot->teacher = teacher;
+							slotList.push_back(slot);
+						}
+						alreadyMatched[tNum][subNum]=1;
 						done=true;
 						break;
 					}
@@ -301,11 +311,9 @@ int Teachers::assignBatches() {
 			}
 		}
 	}
-	return 0;
 }
 
 ////////////
-
 int Subjects::fetchRecordsFromDB() {
 	MySqlDatabase oDB;
 	if(!oDB.createConn()) {
@@ -339,8 +347,7 @@ int Subjects::fetchRecordsFromDB() {
 	delete rs;
 	return 1;
 }
-
-// finds and returns a Subjects*  from subjectVector
+// finds and returns a Subjects* from subjectVector
 // whose id matches with the argument given
 // if no match is found returns NULL
 Subjects* Subjects::findSubject(int id) {
@@ -350,9 +357,8 @@ Subjects* Subjects::findSubject(int id) {
 			return subjectVector[i];
 		}
 	}
-	return NULL;	// not found
+	return NULL; // not found
 }
-
 // initialize the unordered_map subjectsAllocated with the correct values
 // of the number of batches taking that subject
 // must be called after Batches::fetchSubjectsFromDB()
@@ -361,10 +367,8 @@ void Subjects::initializeMap() {
 		subjectsAllocated[subject->id]=subject->numOfBatchesTakingIt;
 	}
 }
-
 /////////////
-
-// fills the batchVector with basic details of batches from the 
+// fills the batchVector with basic details of batches from the
 // database
 int Batches::fetchRecordsFromDB() {
 	MySqlDatabase oDB;
@@ -376,7 +380,7 @@ int Batches::fetchRecordsFromDB() {
 	if(n==0) {
 		return 0;
 	}
-	Batches *temp;	
+	Batches *temp;
 	while(rs->next()) {
 		temp= new Batches();
 		temp->id.push_back(rs->getInt(1));
@@ -388,7 +392,6 @@ int Batches::fetchRecordsFromDB() {
 	delete rs;
 	return 1;
 }
-
 // fills the subjectArr vector of each batch by looking
 // up the common subjects of each of its students(in that batch)
 // the backlog subjects are not added to the vector
@@ -415,13 +418,12 @@ int Batches::fetchSubjectsFromDB() {
 		if(subjectId != subject->id) {
 			subject=Subjects::findSubject(subjectId);
 		}
-		subject->numOfBatchesTakingIt++;	// validate this
+		subject->numOfBatchesTakingIt++; // validate this
 		batch->subjectArr.push_back(subject);
 	}
 	delete rs;
 	return 1;
 }
-
 // groups the individual batches into combined ones
 // static grouping is being performed with no optimization yet,
 // just make groups of 3 batches that have exactly same subjects.
@@ -431,6 +433,7 @@ int Batches::fetchSubjectsFromDB() {
 // also updates the numOfBatchesTakingIt integer of Subject objects
 // To function, batchSubjects must be sorted
 int Batches::groupBatchesForLectures() {
+	
 	unordered_map<string,list<Batches*>> sameSubs;
 	string allSubs;
 	for(Batches* batch : batchVector) {
@@ -510,34 +513,7 @@ int Batches::groupBatchesForLectures() {
 	}
 	return 0;
 }
-
-int Batches::batchSemToInt(string sem) {
-	if(sem == "first")
-		return 1;
-	if(sem == "second") {
-		return 2;
-	}
-	if(sem == "third") {
-		return 3;
-	}
-	if(sem == "fourth") {
-		return 4;
-	}
-	if(sem == "fifth")
-		return 5;
-	if(sem == "sixth") {
-		return 6;
-	}
-	if(sem == "seventh") {
-		return 7;
-	}
-	if(sem == "eighth") {
-		return 8;
-	}
-	return -1;
-}
-
-// finds and returns a Batches*  from batchVector
+// finds and returns a Batches* from batchVector
 // whose id matches with the argument given
 // if no match is found returns NULL
 Batches* Batches::findBatch(int id) {
@@ -547,10 +523,9 @@ Batches* Batches::findBatch(int id) {
 			return batchVector[i];
 		}
 	}
-	return NULL;	// not found
+	return NULL; // not found
 }
 /////////////
-
 // fetches student id, name, batchId and add them to studentVector
 // also adds the student* to respective batch's studentArr vector
 int Students::fetchRecordsFromDB() {
@@ -563,7 +538,7 @@ int Students::fetchRecordsFromDB() {
 	if(n==0) {
 		return 0;
 	}
-	Students *temp;	
+	Students *temp;
 	Batches *batch = batchVector[0];
 	while(rs->next()) {
 		temp= new Students();
@@ -571,7 +546,6 @@ int Students::fetchRecordsFromDB() {
 		temp->name = rs->getString(2);
 		temp->batchId = rs->getInt(3);
 		studentVector.push_back(temp);
-
 		if(batch->id[0] != temp->batchId) {
 			batch=Batches::findBatch(temp->batchId);
 		}
@@ -580,8 +554,6 @@ int Students::fetchRecordsFromDB() {
 	delete rs;
 	return 1;
 }
-
-
 int Rooms::fetchRecordsFromDB() {
 	MySqlDatabase oDB;
 	if(!oDB.createConn()) {
@@ -604,11 +576,9 @@ int Rooms::fetchRecordsFromDB() {
 	delete rs;
 	return 1;
 }
-
-
 void Teachers::display() {
-	cout<<"\nTeacher id:"<<id<<" name:"<<name<<"\npref. subs:"<<preferredSubjects.size();	
-	if(!allocatedSubjects.empty()) { 
+	cout<<"\nTeacher id:"<<id<<" name:"<<name<<"\npref. subs:"<<preferredSubjects.size();
+	if(!allocatedSubjects.empty()) {
 		cout<<" sub allotted:"<<allocatedSubjects.size();
 		cout<<" hrs teaching:"<<hrsCurrentlyTeaching;
 		cout<<" batches allotted:"<<allocatedBatches.size();
@@ -631,39 +601,426 @@ void Rooms::display() {
 	cout<<"\nRoom id:"<<id<<" name:"<<name<<" capacity :"<<capacity<<" type :"<<type;
 }
 
-// tt 
-const int TUT_SIZE = 10; // number of tut rooms
-const int CLASS_SIZE1 = 10; //number of rooms for 3 batches
-const int CLASS_SIZE2 = 10; //number of rooms for 4 batches
-const int LAB_SIZE = 10;  // number of labs
+// pick tt from here
 
+const int PERIODS = 44;
+const int BATCH_SIZE = 100;
+const int TEACH_SIZE = 100;
+const int TUT_SIZE = 4; // number of tut rooms
+const int CLASS_SIZE1 = 4; //number of rooms for 3 batches
+const int CLASS_SIZE2 = 4; //number of rooms for 4 batches
+const int LAB_SIZE = 4;  // number of labs
+const int ROOM_SIZE = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 + LAB_SIZE; 
+int **table = NULL;
+list<Slots*> placedList;
 //count number of iterations
 int TT_COUNT = 0;
+int MAX_ITER = 0;	// will be set when input recv. in server request
 
-const int ROOM_SIZE = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 + LAB_SIZE; 
-const int PERIODS = 10;
+void fitnessFunc ();
 
-int **table;
-list<Slots*> placedSlots; // move elements here once inserted into tt
 
-void generateTable (list<Slots*> slotList) {
+void result() {
+//display final timetable
+	std::cout<<"\nproducing results after completing "<<TT_COUNT<<" iterations\n";
+	for (int i =0 ; i < PERIODS ;i++) {
+		for (int j =0 ; j< ROOM_SIZE; j++) {
+			std::cout<<table[i][j]<<" ";
+		}
+		std::cout<<"\n";
+	}
 	
+	/*std::cout<<"\nUnplaced slot List...\n";
+	list<Slots*>::iterator it = slotList.begin();
+	while (it!=slotList.end()) {
+		std::cout<<(*it)->id<<"  ";
+		++it;
+	}*/
+	std::cout<<"\n";
+}
+
+void iterateTT() {
+	while (TT_COUNT < MAX_ITER) {
+		srand ( time(NULL) );
+		int number = rand() % PERIODS + 1;
+		int i = number; //starting point of i 
+		while (i < PERIODS) {
+
+			// create timetable for i to Periods
+
+			list<Slots*>::iterator it;
+			it = slotList.begin();
+			int a = TUT_SIZE, b = TUT_SIZE + CLASS_SIZE1, c = 0, d = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2; // a : class1 pos, b : class2 pos, c : tut pos, d: lab pos
+
+			while (c < TUT_SIZE && table[i][c] != 0) c++;
+			while (a < (TUT_SIZE + CLASS_SIZE1) && table[i][a] != 0) a++;
+			while (b < (TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2) && table[i][b] != 0) b++;
+			while (d < (ROOM_SIZE) && table[i][d]!= 0) d++; 
+
+			//std::cout<<a<<"\t"<<b<<"\t"<<c<<"\t"<<d;
+
+			while (!slotList.empty() && it != slotList.end()) {
+
+				if ((*it)->subject->type == "lecture") { /*subject-type = 'lecture'*/
+					//std::cout<<"Lecture..\n";
+					if ( (*it)->batch->id.size() < 3 ) { /*ls-size == 3*/
+						if ((a < (TUT_SIZE + CLASS_SIZE1) ) && (table[i][a] == 0) ) {
+
+							table[i][a] = (*it)->id;
+							a++;
+							//remove slot from unplaced list
+							placedList.push_back((*it));
+							list<Slots*>::iterator node;
+							node = it;
+							++it;
+							std::cout<<"assigned lecct";
+							slotList.remove((*node));
+							//++it;
+						}
+						else {
+							while (a < (TUT_SIZE + CLASS_SIZE1) && table[i][a] != 0) a++;
+							//don't assign, move to next vector	
+							++it;
+						}
+					}
+					else {
+						if ((b < TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 ) && (table[i][b] == 0) ) {
+
+							table[i][b] = (*it) -> id;
+							b++;
+							//remove slot from unplaced list
+							placedList.push_back((*it));
+							list<Slots*>::iterator node;
+							node = it;
+							++it;
+							//std::cout<<"Lecture placed.\n";
+							std::cout<<"assigned lect";
+							slotList.remove((*node));
+							//++it;
+						}
+						else {
+							//don't assign, move on to next vector entry
+							while (b < (TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2) && table[i][b] != 0) b++;
+							++it;
+						}
+
+
+					}
+
+				}
+				else if ((*it) -> subject -> type == "tut") { /*subject-type = 'tut'''*/
+					//std::cout<<"Tut..\n";
+					if ((c < TUT_SIZE ) && (table[i][c] == 0)) {
+
+						table[i][c] = (*it) -> id;
+						c++;
+						//remove from unplaced subj list
+						placedList.push_back((*it));
+						list<Slots*>::iterator node;
+						node = it;
+						++it;
+						//std::cout<<"Tut placed\n";
+						std::cout<<"assigned tut";
+						slotList.remove((*node));
+						//++it;
+					}
+					else {
+						//don't assign, move on to next vector entry
+						while (c < TUT_SIZE && table[i][c] != 0) c++;
+						++it;
+
+					}
+				}
+				else {
+					//std::cout<<"Lab.\n";
+
+					if ((i < PERIODS - 1)  && (d < (ROOM_SIZE - 1 )) && (table[i][d] == 0) && (table[i + 1][d] == 0) ) {
+
+
+						/*lab blocked for 2 hours*/
+						table[i][d] = (*it) -> id ;
+						table[i + 1][d] =  (*it) -> id;
+
+						d++;
+						//remove from unplaced list
+						placedList.push_back((*it));
+						list<Slots*>::iterator node;
+						node = it;
+						++it;
+						//std::cout<<"Lab placed..\n";
+						std::cout<<"assigned lab";
+						slotList.remove((*node));
+						//++it;
+					}
+					else {
+						//don't assign, move on to next vector entry
+						while (d < (ROOM_SIZE) && table[i][d]!= 0) d++; 
+						++it;
+
+					}
+
+					//++it;
+				}	
+
+
+			} 
+
+			it = slotList.begin();
+
+			//go to next time slot
+			++i;
+		}
+
+		i = 0;
+		while (i < number) {
+
+			
+			list<Slots*>::iterator it;
+			it = slotList.begin();
+			int a = TUT_SIZE, b = TUT_SIZE + CLASS_SIZE1, c = 0, d = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2; // a : class1 pos, b : class2 pos, c : tut pos, d: lab pos
+
+			while (c < TUT_SIZE && table[i][c] != 0) c++;
+			while (a < (TUT_SIZE + CLASS_SIZE1) && table[i][a] != 0) a++;
+			while (b < (TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2) && table[i][b] != 0) b++;
+			while (d < (ROOM_SIZE) && table[i][d]!= 0) d++; 
+
+			//std::cout<<a<<"\t"<<b<<"\t"<<c<<"\t"<<d;
+
+			while (!slotList.empty() && it != slotList.end()) {
+
+				if ((*it)->subject->type == "lecture") { /*subject-type = 'lecture'*/
+					//std::cout<<"Lecture..\n";
+					if ( (*it)->batch->id.size() < 3 ) { /*ls-size == 3*/
+						if ((a < (TUT_SIZE + CLASS_SIZE1) ) && (table[i][a] == 0) ) {
+
+							table[i][a] = (*it)->id;
+							a++;
+							//remove slot from unplaced list
+							placedList.push_back((*it));
+							list<Slots*>::iterator node;
+							node = it;
+							++it;
+							std::cout<<"assigned lecct";
+							slotList.remove((*node));
+							//++it;
+						}
+						else {
+							while (a < (TUT_SIZE + CLASS_SIZE1) && table[i][a] != 0) a++;
+							//don't assign, move to next vector	
+							++it;
+						}
+					}
+					else {
+						if ((b < TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 ) && (table[i][b] == 0) ) {
+
+							table[i][b] = (*it) -> id;
+							b++;
+							//remove slot from unplaced list
+							placedList.push_back((*it));
+							list<Slots*>::iterator node;
+							node = it;
+							++it;
+							//std::cout<<"Lecture placed.\n";
+							std::cout<<"assigned lect";
+							slotList.remove((*node));
+							//++it;
+						}
+						else {
+							//don't assign, move on to next vector entry
+							while (b < (TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2) && table[i][b] != 0) b++;
+							++it;
+						}
+
+
+					}
+
+				}
+				else if ((*it) -> subject -> type == "tut") { /*subject-type = 'tut'''*/
+					//std::cout<<"Tut..\n";
+					if ((c < TUT_SIZE ) && (table[i][c] == 0)) {
+
+						table[i][c] = (*it) -> id;
+						c++;
+						//remove from unplaced subj list
+						placedList.push_back((*it));
+						list<Slots*>::iterator node;
+						node = it;
+						++it;
+						//std::cout<<"Tut placed\n";
+						std::cout<<"assigned tut";
+						slotList.remove((*node));
+						//++it;
+					}
+					else {
+						//don't assign, move on to next vector entry
+						while (c < TUT_SIZE && table[i][c] != 0) c++;
+						++it;
+
+					}
+				}
+				else {
+					//std::cout<<"Lab.\n";
+
+					if ((i < PERIODS - 1)  && (d < (ROOM_SIZE - 1 )) && (table[i][d] == 0) && (table[i + 1][d] == 0) ) {
+
+
+						/*lab blocked for 2 hours*/
+						table[i][d] = (*it) -> id ;
+						table[i + 1][d] =  (*it) -> id;
+
+						d++;
+						//remove from unplaced list
+						placedList.push_back((*it));
+						list<Slots*>::iterator node;
+						node = it;
+						++it;
+						//std::cout<<"Lab placed..\n";
+						std::cout<<"assigned lab";
+						slotList.remove((*node));
+						//++it;
+					}
+					else {
+						//don't assign, move on to next vector entry
+						while (d < (ROOM_SIZE) && table[i][d]!= 0) d++; 
+						++it;
+
+					}
+
+					//++it;
+				}	
+
+
+			} 
+
+			it = slotList.begin();
+			//go to next time slot
+			++i;
+		}
+		TT_COUNT++;
+		fitnessFunc();
+		//result();
+	}
+
+}
+
+void fitnessFunc () {
+	int  batch[BATCH_SIZE] = {0}, teacher[TEACH_SIZE] = {0};
+	int  bid, tid, i = 0;
+	int  d = ROOM_SIZE; // a : class1 pos, b : class2 pos, c : tut pos, d: lab pos
+	int pos ;
+	int flag = 0;
+	list<Slots*>::iterator it;
+
+	while (i< PERIODS && !placedList.empty()) {		
+		for(int c = 0;c<PERIODS;c++) {
+		
+			//read id of teach+batch+room
+			int isFree = 1;
+			int g;
+			for(g=c;g<ROOM_SIZE;g++) {
+				pos = table[i][g];
+				if(pos!=0) {
+					isFree = 0;
+					break;
+				}
+			}
+			c=g;
+			
+			if (isFree == 0) {				
+				int flaga=0;
+				for(it = placedList.begin();it!= placedList.end();it++) {
+					if((*it)->id==pos) {
+						flaga=1;
+						break;
+					}
+				}
+				if(flaga==0) {
+					cout<<" error in finding ";
+					break;
+				}
+				tid = (*it)->teacher->id;
+				int count = 0; //for how many batches are free in that slot
+				int check_class = 0;
+				int bSize = (*it)->batch->id.size();
+				for(int bi=0;bi<bSize;bi++) { //for every individual batch id 
+					bid = (*it)->batch->id[bi];
+					if (batch[bid] == 0 && teacher[tid] == 0) { //teacher and batch are available
+						if ((*it)->subject->type == "lab") {
+							batch[bid] = 2;
+							teacher[tid] = 2;
+							break;
+						}
+						else if ((*it)->subject->type == "tut") {
+							batch[bid] = 1;
+							teacher[tid] = 1;
+							break;
+						}
+						else { // lecture
+							count++;
+							check_class = 1;
+						}
+					}
+
+					else { //remove entry from that time slot						
+						table[i][c] = 0;
+						if ((*it)->subject->type == "lab"){
+							if (i< (PERIODS - 1) && c<d && pos == table[i+1][c])
+								table[i+1][c] = 0;
+							else if (i<PERIODS && c<d && pos == table[i-1][c])
+								table[i-1][c] = 0;
+						}
+						list<Slots*>::iterator node;
+						node = it;
+						slotList.push_back((*it));
+						//++it;
+						placedList.remove((*node));
+						break;
+					}
+				}
+
+				if (check_class == 1 && count == bSize) {
+					//place class for all batches and the teacher
+					teacher[tid] = 1;
+					for(int bi=0;bi<(*it)->batch->id.size();bi++) { //for every individual batch id 
+						bid = (*it)->batch->id[bi];
+						batch[bid] = 1;
+					}
+					count = 0;
+					check_class = 0;
+				}
+			}		
+		}
+
+		//reset all arrays  - if 0, let it remain 0, if 1 or 2, decrement count 
+		for (int k = 0; k < BATCH_SIZE; k++) {
+			if (batch[k] == 0) ; //do nothing
+			else batch[k] = batch[k] - 1;
+		}
+		for (int k = 0; k < TEACH_SIZE; k++) {
+			if (teacher[k] == 0) ; //do nothing
+			else teacher[k] = teacher[k] - 1;
+		}
+		++i;
+		//increase vector value to next time slot
+	} // while ends, next time slot
+}
+
+
+void generateTable () {
+
+	//int table[PERIODS][ROOM_SIZE] = {0}; //  row i : mon (9-5)-sat (9 -1)  , column j : (0-9 tut) (10 - 29 class1) (30 - 49 class2) ( PERIODS - 59 labs)
+	table = new int * [PERIODS];
+	for (int i = 0 ; i< PERIODS; i++) {
+		table[i] = new int [ROOM_SIZE];
+		for (int j= 0; j < ROOM_SIZE; j++) {
+			table[i][j] = 0;
+		}
+	}
 	int i = 0; 
 	int a = TUT_SIZE, b = TUT_SIZE + CLASS_SIZE1, c = 0, d = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2; // a : class1 pos, b : class2 pos, c : tut pos, d: lab pos
 
-	int lab[PERIODS][LAB_SIZE] = {0}; // stores number of batches per lab, per hour
-	int e = 0;
-	
-	//int table[PERIODS][ROOM_SIZE] = {0}; //  row i : mon (9-5)-sat (9 -1)  , column j : (0-9 tut) (10 - 29 class1) (30 - 49 class2) ( PERIODS - 59 labs)	
-	
-	table = new int*[PERIODS];
-	for(int i=0;i<PERIODS;i++) {
-		table[i] = new int[ROOM_SIZE];
-		for(int j=0;j<ROOM_SIZE;j++) {
-			table[i][j]=0;
-		}
-	}
-	
+	//list<Slots*> placedList; // move elements here once inserted into tt
+
 	list<Slots*>::iterator it;
 	it = slotList.begin();
 	std::cout<<"Generating Timetable....\n";
@@ -677,24 +1034,24 @@ void generateTable (list<Slots*> slotList) {
 		b = TUT_SIZE + CLASS_SIZE1;
 		c = 0;
 		d = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2; // a : class1 pos, b : class2 pos, c : tut pos, d: lab pos
-		e = 0;
+
 		do {
-			
+
 			if ((*it)->subject->type == "lecture") { /*subject-type = 'lecture'*/
 				//std::cout<<"Lecture..\n";
 				if ( (*it)->batch->id.size() < 3 ) { /*ls-size == 3*/
 					if ((table[i][a] == 0) && (a < TUT_SIZE + CLASS_SIZE1 )) {
-						
+
 						table[i][a] = (*it)->id;
 						a++;
 						//remove slot from unplaced list
-						placedSlots.push_back((*it));
+						placedList.push_back((*it));
 						list<Slots*>::iterator node;
 						node = it;
 						++it;
 						//std::cout<<"Lecture placed.\n";
 						slotList.remove((*node));
-
+						//it--;
 					}
 					else {
 						//don't assign, move to next vector	
@@ -707,12 +1064,13 @@ void generateTable (list<Slots*> slotList) {
 						table[i][b] = (*it) -> id;
 						b++;
 						//remove slot from unplaced list
-						placedSlots.push_back((*it));
+						placedList.push_back((*it));
 						list<Slots*>::iterator node;
 						node = it;
 						++it;
 						//std::cout<<"Lecture placed.\n";
 						slotList.remove((*node));
+						//it--;
 					}
 					else {
 						//don't assign, move on to next vector entry
@@ -730,13 +1088,13 @@ void generateTable (list<Slots*> slotList) {
 					table[i][c] = (*it) -> id;
 					c++;
 					//remove from unplaced subj list
-					placedSlots.push_back((*it));
+					placedList.push_back((*it));
 					list<Slots*>::iterator node;
 					node = it;
 					++it;
 					//std::cout<<"Tut placed\n";
 					slotList.remove((*node));
-
+					//it--;
 				}
 				else {
 					//don't assign, move on to next vector entry
@@ -745,30 +1103,23 @@ void generateTable (list<Slots*> slotList) {
 				}
 			}
 			else {
-				//std::cout<<"Lab.\n";				
-				if ((table[i][d] == 0) && (table[i + 1][d] == 0)  && (d < TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 + LAB_SIZE )) {
-					
-					lab[i][e] = lab[i][e] + 1; 
-					lab[i+1][e]  = lab[i+1][e] + 1;
+				//std::cout<<"Lab.\n";
+				if ((table[i][d] == 0) && (table[i + 1][d] == 0)  && (d < ROOM_SIZE - 1 )) {
+
+
 					/*lab blocked for 2 hours*/
 					table[i][d] = (*it) -> id ;
 					table[i + 1][d] =  (*it) -> id;
 
-					if (lab[i][e] <= 4) {
-						//don't change lab numberr
-					} 
-
-					else {
-						d++;
-						e++;
-					}
+					d++;
 					//remove from unplaced list
-					placedSlots.push_back((*it));
+					placedList.push_back((*it));
 					list<Slots*>::iterator node;
 					node = it;
 					++it;
 					//std::cout<<"Lab placed..\n";
 					slotList.remove((*node));
+					//it--;
 				}
 				else {
 					//don't assign, move on to next vector entry
@@ -779,33 +1130,43 @@ void generateTable (list<Slots*> slotList) {
 
 
 		} while (it != slotList.end()); /*list of entities isn't traversed'*/
-		
+
 		//std::cout <<"Done iterating for this slot\n";
-		
+
 		it = slotList.begin();
 		//if ((*it) == NULL) flag = 1;
 
 		//std::cout<<slotList.size()<<"\n";
 		++i;
 	} while (slotList.size() > 0 && i < PERIODS  );
-	 
+
 	//std::cout << "Done iterating the timetable";
-	//std::cout << "Displaying timetable\n";
-	//TT_COUNT++;
-	//for (int i =0 ; i < PERIODS ;i++) {
-	//	for (int j =0 ; j< ROOM_SIZE; j++) {
-	//		std::cout<<table[i][j]<<" ";
-	//	}
-	//	std::cout<<"\n";
-	//}
+	
+	TT_COUNT++;
+	//result();
+	//std::cout<<placedList.size();
 	//std::system("PAUSE");
-	//fitnessFunc(table, slotList);
+	fitnessFunc();
+	iterateTT();
 }
 
-
-//tt close
-
 int timeTableFunctions() {
+
+	Subjects::subjectsAllocated = unordered_map<int,int>() ;
+	batchVector = std::vector<Batches*>();
+	teacherVector = vector<Teachers*>();
+	subjectVector = vector<Subjects*>();
+	studentVector = vector<Students*>();
+	roomVector = vector<Rooms*>();
+	slotList = list<Slots*>();
+	if(table!=NULL) {
+		for(int i=0;i<PERIODS;i++) {
+			free(table[i]);
+		}
+	}
+	placedList = list<Slots*>();
+	TT_COUNT=0;
+
 	int tempArr[5];
 	tempArr[0]=Subjects::fetchRecordsFromDB();
 	tempArr[1]=Batches::fetchRecordsFromDB();
@@ -827,7 +1188,7 @@ int timeTableFunctions() {
 	int a = Teachers::assignSubjects();
 	Teachers::assignBatches();
 	
-	generateTable(slotList);
+	generateTable();
 
 	if(a!=0) {
 		return 102;
@@ -837,7 +1198,7 @@ int timeTableFunctions() {
 
 Slots* findSlot(int id) {
 	
-	for(auto it=placedSlots.begin();it!=placedSlots.end();it++) {
+	for(auto it=placedList.begin();it!=placedList.end();it++) {
 		if((*it)->id == id) {
 			return (*it);
 		}
@@ -845,54 +1206,56 @@ Slots* findSlot(int id) {
 	
 	return NULL;
 }
-int maxSizeOfAnyList(list<string>time[]) {
+int maxSizeOfAnyList(list<string>time[],int siz) {
 	int max=0;
-	for(int i=0;i<8;i++) {
+	for(int i=0;i<siz;i++) {
 		if(time[i].size()>max) max=time[i].size();
 	}
 	return max;
 }
-string convertToJSON() {
+
+string dayJSON(string daySt,int s,int e) {
 	Slots * slot;
 	list<string> time[8];
-	for(int j=0;j<ROOM_SIZE;j++) {
-		for(int i=0;i<8;i++) {			
-			if(table[i][j] != 0) { // get a string of all the detals of the slot together
+	cout<<"in f "<<s<<e;
+	for(int j=0;j<ROOM_SIZE;j++) {		
+		for(int i=s,ti=0;i<e;i++,ti++) {
+			if(table[i][j] != 0) { // get a string of all the details of the slot together
 				slot = findSlot(table[i][j]);
 				if(slot == NULL) {
 					cout<<"no slot matched:"<<table[i][j];
-				}				
+				}
 				string temp;
 				temp=temp+slot->batch->sem+","+slot->batch->name+","+
 					slot->subject->name+","+slot->teacher->name+","+to_string(j);
-				time[i].push_back(temp);
-			}			
+				time[ti].push_back(temp);
+			}
 		}
 	}
-	
+
 	string sEmpty = "";
 	string tmp;
-	int m = maxSizeOfAnyList(time);
-	string monday;
-	monday+="\"monday\" : [ ";
+	int m = maxSizeOfAnyList(time,8);
+	string day;
+	day=day+"\""+daySt+"\" : [ ";
 	if(m>0) {
 		tmp = (time[0].size() > 0)?time[0].front():sEmpty;
-		monday+=" { \"nine\" : \""+tmp+"\"";
+		day+=" { \"nine\" : \""+tmp+"\"";
 		tmp = (time[1].size() > 0)?time[1].front():sEmpty;
-		monday+=" , \"ten\" : \""+tmp+"\"";
+		day+=" , \"ten\" : \""+tmp+"\"";
 		tmp = (time[2].size() > 0)?time[2].front():sEmpty;
-		monday+=" , \"eleven\" : \""+tmp+"\"";
+		day+=" , \"eleven\" : \""+tmp+"\"";
 		tmp = (time[3].size() > 0)?time[3].front():sEmpty;
-		monday+=" , \"twelve\" : \""+tmp+"\"";
+		day+=" , \"twelve\" : \""+tmp+"\"";
 		tmp = (time[4].size() > 0)?time[4].front():sEmpty;
-		monday+=" , \"one\" : \""+tmp+"\"";
+		day+=" , \"one\" : \""+tmp+"\"";
 		tmp = (time[5].size() > 0)?time[5].front():sEmpty;
-		monday+=" , \"two\" : \""+tmp+"\"";
+		day+=" , \"two\" : \""+tmp+"\"";
 		tmp = (time[6].size() > 0)?time[6].front():sEmpty;
-		monday+=" , \"three\" : \""+tmp+"\"";
+		day+=" , \"three\" : \""+tmp+"\"";
 		tmp = (time[7].size() > 0)?time[7].front():sEmpty;
-		monday+=" , \"four\" : \""+tmp+"\"";		
-		monday+=" } ";
+		day+=" , \"four\" : \""+tmp+"\"";		
+		day+=" } ";
 		for(int i=0;i<8;i++) {
 			if(time[i].size()>0) {
 				time[i].pop_front();
@@ -901,94 +1264,124 @@ string convertToJSON() {
 	}
 	for(int i=1;i<m;i++) {
 		tmp = (time[0].size() > 0)?time[0].front():sEmpty;
-		monday+=" ,{ \"nine\" : \""+tmp+"\"";
+		day+=" ,{ \"nine\" : \""+tmp+"\"";
 		tmp = (time[1].size() > 0)?time[1].front():sEmpty;
-		monday+=" , \"ten\" : \""+tmp+"\"";
+		day+=" , \"ten\" : \""+tmp+"\"";
 		tmp = (time[2].size() > 0)?time[2].front():sEmpty;
-		monday+=" , \"eleven\" : \""+tmp+"\"";
+		day+=" , \"eleven\" : \""+tmp+"\"";
 		tmp = (time[3].size() > 0)?time[3].front():sEmpty;
-		monday+=" , \"twelve\" : \""+tmp+"\"";
+		day+=" , \"twelve\" : \""+tmp+"\"";
 		tmp = (time[4].size() > 0)?time[4].front():sEmpty;
-		monday+=" , \"one\" : \""+tmp+"\"";
+		day+=" , \"one\" : \""+tmp+"\"";
 		tmp = (time[5].size() > 0)?time[5].front():sEmpty;
-		monday+=" , \"two\" : \""+tmp+"\"";
+		day+=" , \"two\" : \""+tmp+"\"";
 		tmp = (time[6].size() > 0)?time[6].front():sEmpty;
-		monday+=" , \"three\" : \""+tmp+"\"";
+		day+=" , \"three\" : \""+tmp+"\"";
 		tmp = (time[7].size() > 0)?time[7].front():sEmpty;
-		monday+=" , \"four\" : \""+tmp+"\"";		
-		monday+=" } ";
+		day+=" , \"four\" : \""+tmp+"\"";		
+		day+=" } ";
 		for(int ii=0;ii<8;ii++) {
 			if(time[ii].size()>0) {
 				time[ii].pop_front();
 			}
 		}
 	}
-	monday+="]";
-	return monday;	
+	day+="],";
+	return day;	
 }
-int main1() {
 
-	/*
-		a complete ordering needs to be maintained while calling fetch
-		data from db functions, only then will all objects be correctly
-		linked/associated.
-		1)Subjects::fetchRecordsFromDB()
-		2)Batches::fetchRecordsFromDB()
-		3)Teachers::fetchRecordsFromDB()
-		4)Teachers::fetchSubjectsFromDB()
-		5)Students::fetchRecordsFromDB()
-		6)Batches::fetchSubjectsFromDB()
-		7)Rooms::fetchRecordsFromDB()
-		8)Teachers::assignSubjects()
-		9)Teachers::assignBatches()
-	*/
-	
-	int tempArr[5];
-	tempArr[0]=Subjects::fetchRecordsFromDB();
-	tempArr[1]=Batches::fetchRecordsFromDB();
-	tempArr[2]=Teachers::fetchRecordsFromDB();	
-	tempArr[3]=Students::fetchRecordsFromDB();
-	tempArr[4]=Rooms::fetchRecordsFromDB();
-	bool proceed = true;
-	for(int i:tempArr) {
-		if(i==0) proceed=false;
-	}
-	if(!proceed) {
-		cout<<"error some tables might be empty";
-		system("pause");
-		return 0;
-	}
-	Teachers::fetchSubjectsFromDB();
-	Batches::fetchSubjectsFromDB();	
-	Batches::groupBatchesForLectures();
-	cout<<" fn ret:"<<Teachers::assignSubjects()<<" | ";
-	Teachers::assignBatches();
-
-	for(unsigned int i=0;i<teacherVector.size();i++) {
-		teacherVector[i]->display();
+string saturdayJSON() {
+	Slots * slot;
+	list<string> time[4];
+	for(int j=0;j<ROOM_SIZE;j++) {
+		for(int i=40,ti=0;i<44;i++,ti++) {
+			if(table[i][j] != 0) { // get a string of all the details of the slot together
+				slot = findSlot(table[i][j]);
+				if(slot == NULL) {
+					cout<<"no slot matched:"<<table[i][j];
+				}
+				string temp;
+				temp=temp+slot->batch->sem+","+slot->batch->name+","+
+					slot->subject->name+","+slot->teacher->name+","+to_string(j);
+				time[ti].push_back(temp);
+			}
+		}
 	}
 
-	for(unsigned int i=0;i<batchVector.size();i++) {
-		batchVector[i]->display();
+	string sEmpty = "";
+	string tmp;
+	int m = maxSizeOfAnyList(time,4);
+	string day="";
+	day+="\"saturday\" : [ ";
+	if(m>0) {
+		tmp = (time[0].size() > 0)?time[0].front():sEmpty;
+		day+=" { \"nine\" : \""+tmp+"\"";
+		tmp = (time[1].size() > 0)?time[1].front():sEmpty;
+		day+=" , \"ten\" : \""+tmp+"\"";
+		tmp = (time[2].size() > 0)?time[2].front():sEmpty;
+		day+=" , \"eleven\" : \""+tmp+"\"";
+		tmp = (time[3].size() > 0)?time[3].front():sEmpty;
+		day+=" , \"twelve\" : \""+tmp+"\"";		
+		day+=" } ";
+		for(int i=0;i<4;i++) {
+			if(time[i].size()>0) {
+				time[i].pop_front();
+			}
+		}
 	}
+	for(int i=1;i<m;i++) {
+		tmp = (time[0].size() > 0)?time[0].front():sEmpty;
+		day+=" ,{ \"nine\" : \""+tmp+"\"";
+		tmp = (time[1].size() > 0)?time[1].front():sEmpty;
+		day+=" , \"ten\" : \""+tmp+"\"";
+		tmp = (time[2].size() > 0)?time[2].front():sEmpty;
+		day+=" , \"eleven\" : \""+tmp+"\"";
+		tmp = (time[3].size() > 0)?time[3].front():sEmpty;
+		day+=" , \"twelve\" : \""+tmp+"\"";		
+		day+=" } ";
+		for(int ii=0;ii<4;ii++) {
+			if(time[ii].size()>0) {
+				time[ii].pop_front();
+			}
+		}
+	}
+	day+="]";
+	return day;	
+}
 
-	for(unsigned int i=0;i<subjectVector.size();i++) {
-		subjectVector[i]->display();
+string unplacedJSON() {
+	string out=",\"unplacedSlots\":[";
+	list<Slots*>::iterator it;
+	int isFirst=1;
+	for(it = slotList.begin();it!=slotList.end();it++) {
+		if(isFirst==1) {
+			out+="{ \"slot\":\""+(*it)->batch->sem+","+(*it)->batch->name+","+
+				(*it)->subject->name+","+(*it)->teacher->name+"\"}";
+			isFirst=0;
+		}
+		else {
+			out+=",{ \"slot\":\""+(*it)->batch->sem+","+(*it)->batch->name+","+
+				(*it)->subject->name+","+(*it)->teacher->name+"\"}";
+		}
 	}
-	/*
-	for(unsigned int i=0;i<studentVector.size();i++) {
-		studentVector[i]->display();
-	}
-	*/
-	for(unsigned int i=0;i<roomVector.size();i++) {
-		roomVector[i]->display();
-	}
-	cout<<endl;
+	out+="]";
+	return out;
+}
 
-	generateTable(slotList);
-
-	system("pause");
-	return 1;
+string convertToJSON() {
+	string json = "";
+	string days[] = {"monday","tuesday","wednesday","thursday","friday"};
+	int s=0,e=0;
+	for(int i=0;i<5;i++) {
+		s=i*8;
+		e=s+8;
+		cout<<" "<<s<<e;
+		json+=dayJSON(days[i],s,e);
+	}
+	json+=saturdayJSON();
+	json+=",\"unplaced\":\""+to_string(slotList.size())+"\"";
+	json+=unplacedJSON();
+	return json;
 }
 
 int __cdecl main(void) {
@@ -1070,12 +1463,43 @@ int __cdecl main(void) {
 //#pragma endregion
     // Receive until the peer shuts down the connection
     do {
-
+		memset(recvbuf,0,DEFAULT_BUFLEN);
         iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
         if (iResult > 0) {
             printf("Bytes received: %d\n", iResult);
 			printf(" data: %s",recvbuf);
-
+			string input(recvbuf);
+			size_t pos = input.find("iterNos");
+			if(pos!=string::npos) {				
+				string iters;
+				int iterNos=0;
+				try{
+					iters = input.substr(pos+8,3);
+					iterNos = stoi(iters);
+					MAX_ITER = iterNos;
+				}catch(exception &e) {
+					try{
+						iters = input.substr(pos+8,2);
+						iterNos = stoi(iters);
+						MAX_ITER = iterNos;
+					}catch(exception &e) {
+						try{
+							iters = input.substr(pos+8,1);
+							iterNos = stoi(iters);
+							MAX_ITER = iterNos;
+						}catch(exception &e) {
+							cout<<e.what();
+							MAX_ITER = 50;
+						}
+					}
+				}
+				if(MAX_ITER < 0 || MAX_ITER >200) {					
+					MAX_ITER = 50;
+				}
+			}
+			else {
+				MAX_ITER = 50;
+			}
 			// form a response	
 			string respJSON="{ \"status\": ";			
 			
@@ -1137,7 +1561,62 @@ int __cdecl main(void) {
     return 0;
 }
 
-void main11() {
-	int a =timeTableFunctions();
-	convertToJSON();
+int main11() {
+	/*
+	a complete ordering needs to be maintained while calling fetch
+	data from db functions, only then will all objects be correctly
+	linked/associated.
+	1)Subjects::fetchRecordsFromDB()
+	2)Batches::fetchRecordsFromDB()
+	3)Teachers::fetchRecordsFromDB()
+	4)Teachers::fetchSubjectsFromDB()
+	5)Students::fetchRecordsFromDB()
+	6)Batches::fetchSubjectsFromDB()
+	7)Rooms::fetchRecordsFromDB()
+	8)Teachers::assignSubjects()
+	9)Teachers::assignBatches()
+	*/
+	int tempArr[5];
+	tempArr[0]=Subjects::fetchRecordsFromDB();
+	tempArr[1]=Batches::fetchRecordsFromDB();
+	tempArr[2]=Teachers::fetchRecordsFromDB();
+	tempArr[3]=Students::fetchRecordsFromDB();
+	tempArr[4]=Rooms::fetchRecordsFromDB();
+	bool proceed = true;
+	for(int i:tempArr) {
+		if(i==0) proceed=false;
+	}
+	if(!proceed) {
+		cout<<"error some tables might be empty";
+		system("pause");
+		return 0;
+	}
+	Teachers::fetchSubjectsFromDB();
+	Batches::fetchSubjectsFromDB();
+	Batches::groupBatchesForLectures();
+	cout<<" fn ret:"<<Teachers::assignSubjects()<<" | ";
+	Teachers::assignBatches();
+
+	//display
+	for(unsigned int i=0;i<teacherVector.size();i++) {
+		teacherVector[i]->display();
+	}
+	for(unsigned int i=0;i<batchVector.size();i++) {
+		batchVector[i]->display();
+	}
+	for(unsigned int i=0;i<subjectVector.size();i++) {
+		subjectVector[i]->display();
+	}
+	/*
+	for(unsigned int i=0;i<studentVector.size();i++) {
+	studentVector[i]->display();
+	}
+	*/
+	for(unsigned int i=0;i<roomVector.size();i++) {
+		roomVector[i]->display();
+	}
+	cout<<endl;
+	generateTable();
+	system("pause");
+	return 1;
 }

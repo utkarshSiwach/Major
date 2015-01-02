@@ -5,7 +5,10 @@ if(!isset($_SESSION['SESS_EMAIL'])) {
 }
 include_once("../db_conx.php");
 
-if($_POST['toDo'] == "displayRooms") {
+if($_POST['toDo'] == "logOff") {
+	session_destroy();
+}
+else if($_POST['toDo'] == "displayRooms") {
 	displayRooms();
 }
 elseif($_POST['toDo'] == "deleteRoom") {

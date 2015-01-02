@@ -48,6 +48,7 @@ sap.ui.jsview("major1.rooms", {
 		oAppHeader.setUserName(userName);
 		//configure the log off area
 		oAppHeader.setDisplayLogoff(true);
+		oAppHeader.attachEvent("logoff",oController.logOff);
 		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.top,oAppHeader);
 		
 		//////////////// things for begin /////////////
@@ -754,7 +755,7 @@ sap.ui.jsview("major1.rooms", {
 
 		/////// new batch (prev. form, new toolbar, new layout) /////
 		
-		var oToolbar3 = new sap.ui.commons.Toolbar("tb3Batch",{width:"300px"});		
+		var oToolbar3 = new sap.ui.commons.Toolbar("tb3Batch",{width:"300px"});
 		var button = new sap.ui.commons.Button("newBatchBtn",{
 						text:"Add",
 						icon: "sap-icon://save",
@@ -878,33 +879,28 @@ sap.ui.jsview("major1.rooms", {
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol4",{
-			label: new sap.ui.commons.Label({text:"11-12"}),
+			label: new sap.ui.commons.Label({text:"12-1"}),
 			template: new sap.ui.commons.TextView().bindProperty("text","twelve")
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol5",{
-			label: new sap.ui.commons.Label({text:"12-1"}),
+			label: new sap.ui.commons.Label({text:"1-2"}),
 			template: new sap.ui.commons.TextView().bindProperty("text","one")
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol6",{
-			label: new sap.ui.commons.Label({text:"1-2"}),
+			label: new sap.ui.commons.Label({text:"2-3"}),
 			template: new sap.ui.commons.TextView().bindProperty("text","two")
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol7",{
-			label: new sap.ui.commons.Label({text:"2-3"}),
+			label: new sap.ui.commons.Label({text:"3-4"}),
 			template: new sap.ui.commons.TextView().bindProperty("text","three")
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol8",{
-			label: new sap.ui.commons.Label({text:"3-4"}),
-			template: new sap.ui.commons.TextView().bindProperty("text","four")
-		}));
-				
-		oTableT1.addColumn(new sap.ui.table.Column("tabTCol9",{
 			label: new sap.ui.commons.Label({text:"4-5"}),
-			template: new sap.ui.commons.TextView().bindProperty("text","five")
+			template: new sap.ui.commons.TextView().bindProperty("text","four")
 		}));
 		oTableT1.addStyleClass("panelSpacing");
 		var oModel = new sap.ui.model.json.JSONModel();		
@@ -955,10 +951,92 @@ sap.ui.jsview("major1.rooms", {
 		oModel.refresh(true);
 		oTable6.setModel(oModel);
 		oTable6.bindRows("/modelData");
+		///// filters ////
+		var semFilter = new sap.ui.commons.DropdownBox("semFilter",{
+			items:[
+				new sap.ui.core.ListItem({text:"fisrt"}),
+				new sap.ui.core.ListItem({text:"second"}),
+				new sap.ui.core.ListItem({text:"third"}),
+				new sap.ui.core.ListItem({text:"fourth"}),
+				new sap.ui.core.ListItem({text:"fifth"}),
+				new sap.ui.core.ListItem({text:"sixth"}),
+				new sap.ui.core.ListItem({text:"seventh"}),
+				new sap.ui.core.ListItem({text:"eighth"})				
+			],
+			tooltip:"Semester"
+		});
 		
+		var oTable = new sap.ui.table.Table("tableUT",{
+			title:"Unplaced slots",
+			visibleRowCount:10,
+			width:"100%",
+			selectionMode:sap.ui.table.SelectionMode.Single
+		}).addStyleClass("panelSpacing");
+		
+		oTable.addColumn(new sap.ui.table.Column("tabUTCol1",{
+			label: new sap.ui.commons.Label({text:"Slots"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","slot")
+		}));
+		oModel = new sap.ui.model.json.JSONModel();		
+		oModel.refresh(true);
+		oTable.setModel(oModel);
+		oTable.bindRows("/modelData");
 		oLayoutVertical = new sap.ui.layout.VerticalLayout("allTimeTable",{
-			content: [oTableT1,oTable2,oTable3,oTable4,oTable5,oTable6]
+			content: [oTableT1,oTable2,oTable3,oTable4,oTable5,oTable6,oTable]
 		}).addStyleClass("allTimeTable");
+		
+		////////////////  create timetable /////////////////
+		
+		var oLayout1 = new sap.ui.layout.form.GridLayout("L4", {singleColumn: true});		
+		var oForm1 = new sap.ui.layout.form.Form("createTTForm",{
+			title: new sap.ui.core.Title({text: "Connect to server"}),
+			width: "330px",
+			layout: oLayout1,
+			formContainers: [
+				new sap.ui.layout.form.FormContainer("createTTFormCont",{
+					formElements: [						
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "IP Address of server",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "4"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								value:"127.0.0.1",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Port number of server",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "4"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								value:"27015",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Number of iterations)",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "4"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								value:"50",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						})
+					]
+				})
+			]
+		});		
+		var connectBtn = new sap.ui.commons.Button("conBtn",{
+			text:"Connect",
+			press:oController.connectToCppServer
+		}).addStyleClass("toolbar3Spacing");		
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("createTT",{
+			content: [oForm1,connectBtn]
+		}).addStyleClass("connectToServer");
+			
 		
 	} // createContent
 

@@ -89,7 +89,16 @@ sap.ui.controller("major1.rooms", abc={
 			}
 		});
 	},
-	
+	logOff:function(){
+		$.ajax({
+			url:"./major1/getRooms.php",
+			type:"POST",
+			data:{toDo:"logOff"},
+			success: function() {
+				window.location.assign("//127.0.0.1/web/");
+			}
+		});
+	},
 	// manage the clicks of left side menu
 	manageClick: function(oEvent) {
 		var toDo = oEvent.getSource().getText();
@@ -196,14 +205,15 @@ sap.ui.controller("major1.rooms", abc={
 			}
 		}
 		else if(toDo ==="Create Timetable") {			
-			$.ajax({
-				url:"http://127.0.0.1:27015",
-				type:"POST",
-				success:function(data) {
-					var ttJSON = JSON.parse(data);
-					sap.ui.getCore().byId("tableT1").getModel().setData({modelData:ttJSON.monday});
-				}
-			});
+			var controls = layout.getContent("center");
+			if(controls.length!=0 && controls[0].sId === "createTT") {
+				layout.removeAllContent("center");
+			}
+			else {
+				layout.removeAllContent("center");
+				layout.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.center,				
+					sap.ui.getCore().byId("createTT"));
+			}			
 		}
 	},
 	
@@ -1021,7 +1031,11 @@ sap.ui.controller("major1.rooms", abc={
 	updatePrefs: function(oEvent) {
 		var data = [];
 		var arr = sap.ui.getCore().byId("table2-6").getModel().getData().modelData;
+		var numLabs = 0;
 		for(var i=0;i<arr.length;i++) {
+			if(arr[i].type == "lab") {
+				numLabs++;
+			}
 			var item = {
 				id:userId,
 				prefNum:(i+1),
@@ -1029,6 +1043,12 @@ sap.ui.controller("major1.rooms", abc={
 			};
 			data.push(item);
 		}
+		
+		if(numLabs == 0) {
+			alert("You must select at least one lab");
+			return 0;
+		}
+		
 		var sendStr = {
 			toDo:"updatePrefs",
 			json:JSON.stringify(data)
@@ -1048,6 +1068,43 @@ sap.ui.controller("major1.rooms", abc={
 			}			
 		});
 	},
+	
+	//////////////// timetable functions /////////////////
+	
+	connectToCppServer: function() {
+		var elems = sap.ui.getCore().byId("createTTFormCont").getFormElements();
+		var fields = elems[0].getFields();
+		var ip = fields[0].getValue();
+		fields = elems[1].getFields();
+		var port = fields[0].getValue();
+		fields = elems[2].getFields();	
+		var iterNos = fields[0].getValue();
+		var iter = parseInt(iterNos);
+		if(iter < 0 || iter >200) {
+			alert("please enter a value between 0-200");
+			return 0;
+		}
+		$.ajax({
+				url:"http://"+ip+":"+port,
+				type:"POST",
+				data:{iterNos:iterNos},
+				success:function(data) {
+					var ttJSON = JSON.parse(data);
+					sap.ui.getCore().byId("tableT1").getModel().setData({modelData:ttJSON.monday});
+					sap.ui.getCore().byId("tableT1-2").getModel().setData({modelData:ttJSON.tuesday});
+					sap.ui.getCore().byId("tableT1-3").getModel().setData({modelData:ttJSON.wednesday});
+					sap.ui.getCore().byId("tableT1-4").getModel().setData({modelData:ttJSON.thursday});
+					sap.ui.getCore().byId("tableT1-5").getModel().setData({modelData:ttJSON.friday});
+					sap.ui.getCore().byId("tableT1-6").getModel().setData({modelData:ttJSON.saturday});
+					sap.ui.getCore().byId("tableUT").getModel().setData({modelData:ttJSON.unplacedSlots});
+					alert("Timetable created, number of unplaced slots :"+ttJSON.unplaced);
+				},
+				error:function(oEvent) {
+					alert("error connecting to server");
+				}
+			});
+	},
+	
 /**
 * Similar to onAfterRendering, but this hook is invoked before the controller's View is re-rendered
 * (NOT before the first rendering! onInit() is used for that one!).

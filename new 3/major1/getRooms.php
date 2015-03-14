@@ -50,6 +50,17 @@ elseif($_POST['toDo'] == "deleteBatchSubject") {
 elseif($_POST['toDo'] == "addBatchSubject") {
 	addBatchSubject($_POST['bid'],$_POST['sid'],$_POST['subType'],$_POST['subCode']);
 }
+elseif($_POST['toDo'] == "displayBacklogs") {
+	displayBacklogs();
+}
+elseif($_POST['toDo'] == "addBacklog") {
+	$obj = json_decode($_POST['json'],true);
+	addBacklog($obj["id"],$obj['name'],$obj['batchId'],$obj['batchName'],$obj['semester'],
+		$obj['branch'],$obj['subIds']);
+}
+elseif($_POST['toDo'] == "deleteBacklog") {
+	deleteBacklog($_POST['id']);
+}
 elseif($_POST['toDo'] == "displayPrefs") {
 	displayPrefs($_POST['id']);
 }
@@ -363,6 +374,90 @@ function addBatchSubject($bid,$sid,$subType,$subCode) {
 	}
 }
 
+function toStringForSemester($sem) {
+	$arr = ["first","second","third","fourth","fifth","sixth","seventh","eighth"];
+	return $arr[$sem-1];
+}
+function displayBacklogs() {
+	global $con;
+	$query="select id,students.name,batchId,batch.Name,semester,branch,subjectId from batch, students left join studentbacklogs on id = studentId where batchId=BID";
+	$result = mysqli_query($con, $query) or die(mysqli_error($con));
+	echo "[";
+	$row=mysqli_fetch_array($result);	
+	$prevId = "";
+	$isFirst = true;
+	while($row) {
+		if(!is_null($row['subjectId'])) {
+			if($isFirst) {
+				echo '{';
+			}
+			else {
+				echo ',{';
+			}
+			$sem = toStringForSemester($row['semester']);
+			echo '"id":"'.$row['id'].'","name":"'.$row['name'].'","batchId":"'.
+				$row['batchId'].'","batchName":"'.$row['Name'].'","semester":"'.$sem.
+				'","branch":"'.$row['branch'].'","subIds":[{"id":"'.$row['subjectId'].'"}';
+			$prevId = $row['id'];
+			
+			while(($row=mysqli_fetch_array($result)) && $row['id'] == $prevId ) {
+				// echo subids
+				echo ',{"id":"'.$row['subjectId'].'"}';
+			}
+			echo ']}';	
+			$isFirst=false;
+		}
+		elseif ($row){
+			// dont print subids
+			if($isFirst) {
+				echo '{';
+			}
+			else {
+				echo ',{';
+			}
+			$sem = toStringForSemester($row['semester']);
+			echo '"id":"'.$row['id'].'","name":"'.$row['name'].'","batchId":"'.
+				$row['batchId'].'","batchName":"'.$row['Name'].'","semester":"'.$sem.
+				'","branch":"'.$row['branch'].'","subIds":[]}';
+			$prevId = $row['id'];
+			$isFirst=false;
+			// get next row
+			$row = mysqli_fetch_array($result);
+		}		
+	}
+	echo']';
+}
+
+function addBacklog($id,$name,$bid,$batch,$sem,$branch,$subs) {
+	global $con;
+	
+	$arr = ["first","second","third","fourth","fifth","sixth","seventh","eighth"];
+	$semester = 0;
+	for($i=0;$i<count($arr);$i++) {
+		if($sem==$arr[$i]) {
+			$semester = $i+1;
+			break;
+		}
+	}
+	$sql = "insert into students values ($id,'$name',$bid,$semester,'$branch')";
+	mysqli_query($con,$sql) or die(mysqli_error($con));
+	
+	if(count($subs)>0) {
+		$str ='('.$id.','.$subs[0]["id"].')';
+		for($i=1;$i<count($subs);$i++) {
+			$str=$str.',('.$id.','.$subs[$i]["id"].')';
+		}	
+		$query='insert into studentbacklogs values '.$str;
+		mysqli_query($con,$query) or die(mysqli_error($con));	
+	}
+	echo "done";
+}
+
+function deleteBacklog($id) {
+	global $con;
+	$query="delete from students where id = $id";
+	mysqli_query($con, $query) or die(mysqli_error($con));
+}
 function displayPrefs($id) {
 	global $con;
 	$query="select preference,subjectId from teachersubjects where teacherId = $id order by preference";

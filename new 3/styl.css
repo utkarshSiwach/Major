@@ -81,6 +81,16 @@ width: 400px;
 height: 230px;
 }
 
+.newBacklog {
+position: absolute;
+left: 4%;
+top: 30px;
+background-color: aqua;
+border: solid 2px purple;
+width: 400px;
+height: 250px;
+}
+
 .updatePrefsBtn {
 position:absolute;
 left:710px;
@@ -91,4 +101,14 @@ top:255px;
 position:absolute;
 left:20px;
 top:20px;
+}
+
+.connectToServer {
+position: absolute;
+left: 10%;
+top: 15%;
+background-color: aqua;
+border: solid 2px purple;
+width: 400px;
+height: 200px;
 }

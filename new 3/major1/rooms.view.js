@@ -118,6 +118,21 @@ sap.ui.jsview("major1.rooms", {
 		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,oPanel3);
 		
 		//Create a panel instance
+		var oPanel7 = new sap.ui.commons.Panel({showCollapseIcon: false});
+		oPanel7.setAreaDesign(sap.ui.commons.enums.AreaDesign.Plain);
+		oPanel7.setBorderDesign(sap.ui.commons.enums.BorderDesign.Box);
+		//Set the title of the panel
+		oPanel7.setTitle(new sap.ui.core.Title({text:"Backlogs"}));
+		var oViewBacklogsBtn = new sap.ui.commons.Button({width:"130px",text:"View Backlogs",press:oController.manageClick});
+		var oNewBacklogBtn = new sap.ui.commons.Button({width:"130px",text:"New Backlog",press:oController.manageClick});
+		oLayoutVertical = new sap.ui.layout.VerticalLayout({
+			content: [oViewBacklogsBtn,oNewBacklogBtn]
+		});
+		oPanel7.addContent(oLayoutVertical);		
+		oPanel7.addStyleClass("panelSpacing");
+		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,oPanel7);
+		
+		//Create a panel instance
 		var oPanel6 = new sap.ui.commons.Panel({showCollapseIcon: false});
 		oPanel6.setAreaDesign(sap.ui.commons.enums.AreaDesign.Plain);
 		oPanel6.setBorderDesign(sap.ui.commons.enums.BorderDesign.Box);
@@ -777,6 +792,277 @@ sap.ui.jsview("major1.rooms", {
 			content: [oForm2,oToolbar3]
 		}).addStyleClass("newBatch");
 		
+		///////////////////// backlog students ////////////////////
+		///////////////////////////////////////////////////////////
+		
+		var oTable8 = new sap.ui.table.Table("table8",{
+			title:"Students with backlogs",
+			width:"40%",
+			visibleRowCount:10,
+			selectionMode:sap.ui.table.SelectionMode.Single
+		});
+		oTable8.addColumn( new sap.ui.table.Column({
+			label: new sap.ui.commons.Label({text:"id"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","id")
+		}));
+		oTable8.addColumn( new sap.ui.table.Column({
+			label: new sap.ui.commons.Label({text:"name"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","name")
+		}));
+		oTable8.addColumn( new sap.ui.table.Column({
+			label: new sap.ui.commons.Label({text:"batch"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","batchName")
+		}));
+		oTable8.addColumn( new sap.ui.table.Column({
+			label: new sap.ui.commons.Label({text:"semester"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","semester")
+		}));
+		oTable8.addColumn( new sap.ui.table.Column({
+			label: new sap.ui.commons.Label({text:"branch"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","branch")
+		}));
+		
+		var oModel = new sap.ui.model.json.JSONModel();
+		oTable8.setModel(oModel);
+		oTable8.bindRows("/modelData");
+		
+		var oToolbar1 = new sap.ui.commons.Toolbar("tb1Backlog",{width:"40%"});
+		oToolbar1.setDesign(sap.ui.commons.ToolbarDesign.Standard);
+		
+		var button = new sap.ui.commons.Button("editBacklogBtn",{
+						text:"Edit",
+						icon: "sap-icon://edit",
+						press: oController.editBacklog
+					});
+		var button2 = new sap.ui.commons.Button("deleteBacklogBtn",{
+						text:"Delete",
+						icon: "sap-icon://delete",
+						press: oController.deleteBacklog
+					});
+		oToolbar1.addItem(button);
+		oToolbar1.addItem(button2);
+		oToolbar1.addStyleClass("toolbar_color");
+		
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("backlogTable",{
+			content: [oTable8,oToolbar1]
+		}).addStyleClass("table1");
+		
+		///////////////// new backlog  ///////////////
+		
+		var oModel = new sap.ui.model.json.JSONModel();		
+		oModel.setData({modelData:[{bName:"b1"},{bName:"b2"}]});
+		var batchDropdown = new sap.ui.commons.DropdownBox("newBaklgBatchDD",{
+			layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})
+		});
+		batchDropdown.setModel(oModel);
+		var oItemTemplate = new sap.ui.core.ListItem();
+		oItemTemplate.bindProperty("text","bName");
+		batchDropdown.bindItems("/modelData",oItemTemplate);
+		
+		var oLayout1 = new sap.ui.layout.form.GridLayout( {singleColumn: true});
+		var oFormId = "F1Backlog";
+		var oFormContainerId = "formC1Backlog";
+		var oForm1 = new sap.ui.layout.form.Form(oFormId,{
+			title: new sap.ui.core.Title({text: "New backlog student"}),
+			width: "300px",
+			layout: oLayout1,
+			formContainers: [
+				new sap.ui.layout.form.FormContainer(oFormContainerId,{
+					formElements: [						
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Id",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Name",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						}),						
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Semester",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [
+								// Create a DropdownBox
+								new sap.ui.commons.DropdownBox({
+									layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+								.setTooltip("Semester")
+								.setEditable(true)
+								.setWidth("200px")
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("first")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("second")
+								)	
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("third")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("fourth")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("fifth")
+								)	
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("sixth")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("seventh")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("eighth")
+								).attachEvent("change",oController.newBacklogSemChange)
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Branch",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [
+								// Create a DropdownBox
+								new sap.ui.commons.DropdownBox({
+									layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+								.setTooltip("Branch")
+								.setEditable(true)
+								.setWidth("200px")
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("cse")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("ece")
+								)	
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("IT")
+								)
+								.addItem(
+									new sap.ui.core.ListItem()
+									.setText("biotech")
+								).attachEvent("change",oController.newBacklogBranchChange)
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Current batch",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [
+								batchDropdown
+							]
+						})
+					]
+				})
+			]
+		});
+		
+		var oToolbar2 = new sap.ui.commons.Toolbar("tb2Backlog",{width:"300px"});
+		//oToolbar2.setDesign(sap.ui.commons.ToolbarDesign.Standard);		
+		var button = new sap.ui.commons.Button("createBacklogBtn",{
+						text:"Create",
+						icon: "sap-icon://save",
+						press: oController.createBacklog
+					});
+		var button2 = new sap.ui.commons.Button({
+						text:"Cancel",
+						icon: "sap-icon://decline",
+						press: oController.cancelBacklog
+					});
+		oToolbar2.addItem(button);
+		oToolbar2.addItem(button2);
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("createBacklogForm",{
+			content: [oForm1,oToolbar2]
+		}).addStyleClass("newBacklog");
+		
+		///////////////// backlog subjects //////////////
+		
+		var oTable9 = oTable2.clone("9");
+		oTable9.setTitle("Backlog Subjects");
+		oTable9.setWidth("90%");
+		oTable9.setVisibleRowCount(6);
+		oTable9.removeColumn("tab2Col4-9");
+		oTable9.setNavigationMode(sap.ui.table.NavigationMode.Scrollbar);
+		var oModel4 = new sap.ui.model.json.JSONModel();		
+		oModel4.refresh(true);
+		oTable9.setModel(oModel4);
+		oTable9.bindRows("/modelData");
+				
+		var oToolbar1 = new sap.ui.commons.Toolbar("tb9Sub",{width:"90%"});
+		oToolbar1.setDesign(sap.ui.commons.ToolbarDesign.Standard);
+		
+		var button = new sap.ui.commons.Button("addBacklogSubBtn",{
+						text:"Add subjects",
+						icon: "sap-icon://add",
+						press: oController.addBacklogSubject
+					});
+		var button2 = new sap.ui.commons.Button("deleteBacklogSubBtn",{
+						text:"Delete subject",
+						icon: "sap-icon://delete",
+						press: oController.deleteBacklogSubject
+					});
+		oToolbar1.addItem(button);
+		oToolbar1.addItem(button2);
+		oToolbar1.addStyleClass("toolbar_color");
+		
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("backlogSubjectTable",{
+			content: [oTable9,oToolbar1]
+		}).addStyleClass("table4");
+		
+		var oTable11 = oTable9.clone("11");	//to be placed at view backlogs id: table2-9-11
+		var oModel = new sap.ui.model.json.JSONModel();
+		oTable11.setModel(oModel);
+		oTable11.bindRows("/modelData");
+		oTable11.setWidth("50%");
+		oTable11.addStyleClass("table4");
+		///////////// add subjects to backlog table ////////
+		
+		var oTable10 = oTable2.clone("10");
+		oTable10.setTitle("Pick Subjects");
+		oTable10.setWidth("100%");
+		oTable10.setVisibleRowCount(6);
+		oTable10.setNavigationMode(sap.ui.table.NavigationMode.Scrollbar);
+		//oTable5.removeColumn("tab2Col5-5");
+		var oModel = new sap.ui.model.json.JSONModel();
+		oModel.refresh(true);
+		oTable10.setModel(oModel);
+		oTable10.bindRows("/modelData");
+		
+		var oToolbar1 = new sap.ui.commons.Toolbar("tb10Sub",{width:"100%"});
+		oToolbar1.setDesign(sap.ui.commons.ToolbarDesign.Standard);
+		
+		var button = new sap.ui.commons.Button("addBacklogSubBtn1",{
+						text:"Add",
+						icon: "sap-icon://add",
+						press: oController.addBacklogSubject1
+					});
+		oToolbar1.addItem(button);
+		oToolbar1.addStyleClass("toolbar_color");
+		
+		oLayoutVertical = new sap.ui.layout.VerticalLayout("backlogAddSubjectTable",{
+			content: [oTable10,oToolbar1]
+		}).addStyleClass("table5");
+		
 		//////////////////// course preferences ///////////////////
 		///////////////////////////////////////////////////////////
 		
@@ -1017,7 +1303,7 @@ sap.ui.jsview("major1.rooms", {
 						}),
 						new sap.ui.layout.form.FormElement({
 							label: new sap.ui.commons.Label({
-								text: "Number of iterations)",
+								text: "Number of iterations",
 								layoutData: new sap.ui.layout.form.GridElementData({hCells: "4"})
 							}),
 							fields: [new sap.ui.commons.TextField({

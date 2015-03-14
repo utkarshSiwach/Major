@@ -73,7 +73,9 @@ public:
 	string name;
 	string type;
 	string sem;
-	vector<Students *> studentArr;
+	// currently only those students that have backlogs, but the vector 
+	// can hold 'back free' students also
+	vector<Students *> studentArr; 
 	vector<Subjects *> subjectArr;
 	void display();
 	static int fetchRecordsFromDB();
@@ -81,13 +83,28 @@ public:
 	static int groupBatchesForLectures();
 	static Batches* findBatch(int);
 };
+
+// this class just contains a pairing of a backlog subject with
+// the backlog batch that will be assigned for it.
+class Backlogs {
+public:
+	Subjects* subject;
+	Batches* batch;
+};
+
+// this class currently holds only those students that have
+// backlogs, though normal students can fit just as well
 class Students {
 public:
 	int id;
 	string name;
 	int batchId;
+	int semester;
+	vector<Backlogs> backs;	// have to assign a batch to each backlog
 	void display();
+	static Students * findStudent(int);
 	static int fetchRecordsFromDB();
+	static int fetchBacklogsFromDB();
 };
 class Rooms {
 public:
@@ -111,6 +128,7 @@ std::vector<Subjects*> subjectVector;
 std::vector<Students*> studentVector;
 std::vector<Rooms*> roomVector;
 std::list<Slots*> slotList; // it is populated by Teachers::assignBatches()
+
 int Teachers::fetchRecordsFromDB() {
 	MySqlDatabase oDB;
 	if(!oDB.createConn()) {
@@ -260,7 +278,8 @@ int Teachers::assignSubjects() {
 }
 // for every subject a batch is taking, find a teacher taking it
 // and assign him/her to that batch.
-// Also add this combination of (teacher-batch-subject) to slotList
+// Also add this combination of (teacher-batch-subject) to slotList 'x' times
+// where x = classesPerWeek of that subject
 // Can be optimized further, also there can be multiple bindings of teacher-batch
 int Teachers::assignBatches() {
 	bool done=false;
@@ -367,7 +386,9 @@ void Subjects::initializeMap() {
 		subjectsAllocated[subject->id]=subject->numOfBatchesTakingIt;
 	}
 }
+
 /////////////
+
 // fills the batchVector with basic details of batches from the
 // database
 int Batches::fetchRecordsFromDB() {
@@ -427,9 +448,10 @@ int Batches::fetchSubjectsFromDB() {
 // groups the individual batches into combined ones
 // static grouping is being performed with no optimization yet,
 // just make groups of 3 batches that have exactly same subjects.
-// creates a new Batch object with id vector having ids of all constituent batches
-// lecture subjects from individual batches are removed from that batch's subject
-// list vector and added to the combined batch's subjectList vector
+// creates a new Batch object with id vector having ids of all constituent batches.
+// Lecture subjects from individual batches are removed from that batch's subject list
+// vector and added to the combined batch's subjectList vector.
+// backlog students are moved to grouped batches according to their back subjects.
 // also updates the numOfBatchesTakingIt integer of Subject objects
 // To function, batchSubjects must be sorted
 int Batches::groupBatchesForLectures() {
@@ -449,30 +471,21 @@ int Batches::groupBatchesForLectures() {
 		//aa++;
 		list<Batches*> tempL = it->second;
 		for(int i=0;tempL.size()>=3;i++) {
+			
 			Batches* curBatch = tempL.front();
 			tempL.pop_front();
-			Batches * newBatch = new Batches();
-			
+			Batches * newBatch = new Batches();			
 			newBatch->id.push_back(curBatch->id[0]);
 			newBatch->name = curBatch->name;
+			// copy the backlog students to the new batch, as some students in individual batches
+			// have some backlogs
+			for(Students* student : curBatch->studentArr) {
+				newBatch->studentArr.push_back(student);
+			}
 			//int bb=1;
 			for(auto it1 = curBatch->subjectArr.begin();it1!=curBatch->subjectArr.end();it1++) {  // remove lecture from indi. batch
 				//cout<<" "<<bb;
 				//bb++;				
-				//cout<<(*it1)->name;
-				if((*it1)->type == "lecture") {					
-					curBatch->subjectArr.erase(it1);
-					it1--;
-					if(it1 == curBatch->subjectArr.end()) {
-						break;
-					}
-				}
-			}
-			curBatch = tempL.front();
-			tempL.pop_front();
-			newBatch->id.push_back(curBatch->id[0]);
-			newBatch->name += curBatch->name;
-			for(auto it1 = curBatch->subjectArr.begin();it1!=curBatch->subjectArr.end();it1++) {  // remove lecture from indi. batch
 				//cout<<(*it1)->name;
 				if((*it1)->type == "lecture") {					
 					curBatch->subjectArr.erase(it1);
@@ -487,9 +500,33 @@ int Batches::groupBatchesForLectures() {
 			tempL.pop_front();
 			newBatch->id.push_back(curBatch->id[0]);
 			newBatch->name += curBatch->name;
+			for(auto it1 = curBatch->subjectArr.begin();it1!=curBatch->subjectArr.end();it1++) {  // remove lecture from indi. batch
+				//cout<<(*it1)->name;
+				if((*it1)->type == "lecture") {					
+					curBatch->subjectArr.erase(it1);
+					it1--;
+					if(it1 == curBatch->subjectArr.end()) {
+						break;
+					}
+				}
+			}
+			// copy the backlog students to the new batch, as some students in individual batches
+			// have some backlogs
+			for(Students* student : curBatch->studentArr) {
+				newBatch->studentArr.push_back(student);
+			}
 			
+			curBatch = tempL.front();
+			tempL.pop_front();
+			newBatch->id.push_back(curBatch->id[0]);
+			newBatch->name += curBatch->name;			
 			newBatch->sem = curBatch->sem;
 			newBatch->type = curBatch->type;
+			// copy the backlog students to the new batch, as some students in individual batches
+			// have some backlogs
+			for(Students* student : curBatch->studentArr) {
+				newBatch->studentArr.push_back(student);
+			}
 			for(auto it1 = curBatch->subjectArr.begin();it1!=curBatch->subjectArr.end();it1++) {  // populate subjectArr
 				//cout<<(*it1)->name;
 				if((*it1)->type == "lecture") {
@@ -526,7 +563,8 @@ Batches* Batches::findBatch(int id) {
 	return NULL; // not found
 }
 /////////////
-// fetches student id, name, batchId and add them to studentVector
+
+// fetches student id, name, batchId, semester and add them to studentVector
 // also adds the student* to respective batch's studentArr vector
 int Students::fetchRecordsFromDB() {
 	MySqlDatabase oDB;
@@ -545,6 +583,7 @@ int Students::fetchRecordsFromDB() {
 		temp->id = rs->getInt(1);
 		temp->name = rs->getString(2);
 		temp->batchId = rs->getInt(3);
+		temp->semester = rs->getInt(4);
 		studentVector.push_back(temp);
 		if(batch->id[0] != temp->batchId) {
 			batch=Batches::findBatch(temp->batchId);
@@ -554,6 +593,40 @@ int Students::fetchRecordsFromDB() {
 	delete rs;
 	return 1;
 }
+
+Students * Students::findStudent(int id) {	
+	for(Students *temp:studentVector) {
+		if(temp->id==id) {
+			return temp;
+		}
+	}
+	return NULL;	
+}
+
+int Students::fetchBacklogsFromDB() {
+	MySqlDatabase oDB;
+	if(!oDB.createConn()) {
+		return 0;
+	}
+	ResultSet *rs = oDB.execute("select * from studentbacklogs");
+	int n = rs->rowsCount();
+	if(n==0) {
+		return 1;
+	}
+
+	Students *temp;
+	Subjects *tempSub;
+
+	while(rs->next()) {
+		temp = findStudent(rs->getInt(1));
+		tempSub = Subjects::findSubject(rs->getInt(2));
+		Backlogs back;
+		back.subject = tempSub;
+		back.batch = NULL;
+		temp->backs.push_back(back);
+	}
+}
+
 int Rooms::fetchRecordsFromDB() {
 	MySqlDatabase oDB;
 	if(!oDB.createConn()) {
@@ -576,6 +649,7 @@ int Rooms::fetchRecordsFromDB() {
 	delete rs;
 	return 1;
 }
+
 void Teachers::display() {
 	cout<<"\nTeacher id:"<<id<<" name:"<<name<<"\npref. subs:"<<preferredSubjects.size();
 	if(!allocatedSubjects.empty()) {
@@ -616,8 +690,8 @@ list<Slots*> placedList;
 //count number of iterations
 int TT_COUNT = 0;
 int MAX_ITER = 0;	// will be set when input recv. in server request
-
-void fitnessFunc ();
+int MAX_UNPLACED = 0;	// will be set when input recv. in server request
+int fitnessFunc ();
 
 
 void result() {
@@ -639,8 +713,9 @@ void result() {
 	std::cout<<"\n";
 }
 
-void iterateTT() {
-	while (TT_COUNT < MAX_ITER) {
+void iterateTT(int unplacedNos) {
+	int aa = unplacedNos;
+	while (aa>5 && TT_COUNT < MAX_ITER) {
 		srand ( time(NULL) );
 		int number = rand() % PERIODS + 1;
 		int i = number; //starting point of i 
@@ -673,7 +748,7 @@ void iterateTT() {
 							list<Slots*>::iterator node;
 							node = it;
 							++it;
-							std::cout<<"assigned lecct";
+							//std::cout<<"assigned lecct";
 							slotList.remove((*node));
 							//++it;
 						}
@@ -694,7 +769,7 @@ void iterateTT() {
 							node = it;
 							++it;
 							//std::cout<<"Lecture placed.\n";
-							std::cout<<"assigned lect";
+							//std::cout<<"assigned lect";
 							slotList.remove((*node));
 							//++it;
 						}
@@ -720,7 +795,7 @@ void iterateTT() {
 						node = it;
 						++it;
 						//std::cout<<"Tut placed\n";
-						std::cout<<"assigned tut";
+						//std::cout<<"assigned tut";
 						slotList.remove((*node));
 						//++it;
 					}
@@ -748,7 +823,7 @@ void iterateTT() {
 						node = it;
 						++it;
 						//std::cout<<"Lab placed..\n";
-						std::cout<<"assigned lab";
+						//std::cout<<"assigned lab";
 						slotList.remove((*node));
 						//++it;
 					}
@@ -800,7 +875,7 @@ void iterateTT() {
 							list<Slots*>::iterator node;
 							node = it;
 							++it;
-							std::cout<<"assigned lecct";
+							//std::cout<<"assigned lecct";
 							slotList.remove((*node));
 							//++it;
 						}
@@ -821,7 +896,7 @@ void iterateTT() {
 							node = it;
 							++it;
 							//std::cout<<"Lecture placed.\n";
-							std::cout<<"assigned lect";
+							//std::cout<<"assigned lect";
 							slotList.remove((*node));
 							//++it;
 						}
@@ -847,7 +922,7 @@ void iterateTT() {
 						node = it;
 						++it;
 						//std::cout<<"Tut placed\n";
-						std::cout<<"assigned tut";
+						//std::cout<<"assigned tut";
 						slotList.remove((*node));
 						//++it;
 					}
@@ -875,7 +950,7 @@ void iterateTT() {
 						node = it;
 						++it;
 						//std::cout<<"Lab placed..\n";
-						std::cout<<"assigned lab";
+						//std::cout<<"assigned lab";
 						slotList.remove((*node));
 						//++it;
 					}
@@ -897,13 +972,16 @@ void iterateTT() {
 			++i;
 		}
 		TT_COUNT++;
-		fitnessFunc();
+		aa = fitnessFunc();
+		cout<<" a "<<aa;
 		//result();
 	}
 
 }
 
-void fitnessFunc () {
+// removes conflicting slots from placedList and puts them back on soltList
+// returns the number of slots in slotList
+int fitnessFunc () {
 	int  batch[BATCH_SIZE] = {0}, teacher[TEACH_SIZE] = {0};
 	int  bid, tid, i = 0;
 	int  d = ROOM_SIZE; // a : class1 pos, b : class2 pos, c : tut pos, d: lab pos
@@ -1003,8 +1081,8 @@ void fitnessFunc () {
 		++i;
 		//increase vector value to next time slot
 	} // while ends, next time slot
+	return slotList.size();
 }
-
 
 void generateTable () {
 
@@ -1146,8 +1224,8 @@ void generateTable () {
 	//result();
 	//std::cout<<placedList.size();
 	//std::system("PAUSE");
-	fitnessFunc();
-	iterateTT();
+	int unplacedNos = fitnessFunc();
+	iterateTT(unplacedNos);
 }
 
 int timeTableFunctions() {
@@ -1183,7 +1261,8 @@ int timeTableFunctions() {
 		return 101;
 	}
 	Teachers::fetchSubjectsFromDB();
-	Batches::fetchSubjectsFromDB();	
+	Batches::fetchSubjectsFromDB();
+	Students::fetchBacklogsFromDB();
 	Batches::groupBatchesForLectures();
 	int a = Teachers::assignSubjects();
 	Teachers::assignBatches();
@@ -1385,7 +1464,10 @@ string convertToJSON() {
 }
 
 int __cdecl main(void) {
-//#pragma region
+
+	// create a server socket with tcp,
+	// accept a client and then close server
+#pragma region
 	WSADATA wsaData;
     int iResult;
 
@@ -1460,7 +1542,7 @@ int __cdecl main(void) {
 
     // No longer need server socket
     closesocket(ListenSocket);
-//#pragma endregion
+#pragma endregion
     // Receive until the peer shuts down the connection
     do {
 		memset(recvbuf,0,DEFAULT_BUFLEN);
@@ -1493,13 +1575,15 @@ int __cdecl main(void) {
 						}
 					}
 				}
-				if(MAX_ITER < 0 || MAX_ITER >200) {					
+				if(MAX_ITER < 0 || MAX_ITER >999) {					
 					MAX_ITER = 50;
 				}
 			}
 			else {
 				MAX_ITER = 50;
 			}
+			MAX_ITER = 1e4;
+			MAX_UNPLACED = 5;
 			// form a response	
 			string respJSON="{ \"status\": ";			
 			
@@ -1561,6 +1645,7 @@ int __cdecl main(void) {
     return 0;
 }
 
+// this main is to test functionality without web input
 int main11() {
 	/*
 	a complete ordering needs to be maintained while calling fetch
@@ -1572,9 +1657,11 @@ int main11() {
 	4)Teachers::fetchSubjectsFromDB()
 	5)Students::fetchRecordsFromDB()
 	6)Batches::fetchSubjectsFromDB()
-	7)Rooms::fetchRecordsFromDB()
-	8)Teachers::assignSubjects()
-	9)Teachers::assignBatches()
+	7)Students::fetchBacklogsFromDB()
+	8)Batches::groupBatchesForLectures()
+	9)Rooms::fetchRecordsFromDB()
+	10)Teachers::assignSubjects()
+	11)Teachers::assignBatches()
 	*/
 	int tempArr[5];
 	tempArr[0]=Subjects::fetchRecordsFromDB();
@@ -1593,6 +1680,7 @@ int main11() {
 	}
 	Teachers::fetchSubjectsFromDB();
 	Batches::fetchSubjectsFromDB();
+	Students::fetchBacklogsFromDB();
 	Batches::groupBatchesForLectures();
 	cout<<" fn ret:"<<Teachers::assignSubjects()<<" | ";
 	Teachers::assignBatches();

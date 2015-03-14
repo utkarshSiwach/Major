@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: 127.0.0.1
--- Generation Time: Dec 21, 2014 at 08:56 PM
+-- Generation Time: Mar 14, 2015 at 11:07 AM
 -- Server version: 5.1.42-community
 -- PHP Version: 5.4.16
 
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS `batch` (
   `Type` varchar(20) NOT NULL,
   `Sem` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`BID`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=37 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=39 ;
 
 --
 -- Dumping data for table `batch`
@@ -63,7 +63,8 @@ INSERT INTO `batch` (`BID`, `Name`, `Type`, `Sem`) VALUES
 (33, 'c1', 'biotech', 'second'),
 (34, 'c2', 'biotech', 'second'),
 (35, 'c3', 'biotech', 'second'),
-(36, 'c4', 'biotech', 'second');
+(36, 'c4', 'biotech', 'second'),
+(38, 'qw', 'cse', 'first');
 
 -- --------------------------------------------------------
 
@@ -417,7 +418,9 @@ INSERT INTO `batchsubjects` (`batchId`, `subjectId`, `studentNos`) VALUES
 (36, 96, 30),
 (36, 97, 30),
 (36, 99, 30),
-(36, 100, 30);
+(36, 100, 30),
+(5, 89, 30),
+(38, 74, 30);
 
 -- --------------------------------------------------------
 
@@ -432,14 +435,14 @@ CREATE TABLE IF NOT EXISTS `room` (
   `Type` varchar(20) NOT NULL,
   `Location` varchar(20) NOT NULL,
   PRIMARY KEY (`RID`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=36 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=37 ;
 
 --
 -- Dumping data for table `room`
 --
 
 INSERT INTO `room` (`RID`, `Name`, `Capacity`, `Type`, `Location`) VALUES
-(1, 'G1', 2, 'Lecture', 'Academic'),
+(1, 'g13', 2, 'lecture', 'Academic'),
 (2, 'TS1', 2, 'tut', 'Academic'),
 (4, 'g1', 3, 'lecture', 'Academic'),
 (5, 'g2', 3, 'lecture', 'Academic'),
@@ -460,7 +463,40 @@ INSERT INTO `room` (`RID`, `Name`, `Capacity`, `Type`, `Location`) VALUES
 (21, 'ts8', 1, 'tut', 'Academic'),
 (25, 'asd', 2, 'dfsg', 'f'),
 (34, 'qwe', 2, 'tut', 'wer'),
-(35, 'asd23', 2, 'tut', 'asdd');
+(35, 'asd23', 2, 'tut', 'asdd'),
+(36, 'lt6', 3, 'lecture', 'Academic');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `studentbacklogs`
+--
+
+CREATE TABLE IF NOT EXISTS `studentbacklogs` (
+  `studentId` int(11) DEFAULT NULL,
+  `subjectId` int(11) DEFAULT NULL,
+  KEY `sb_fk_1` (`studentId`),
+  KEY `sb_fk_2` (`subjectId`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--
+-- Dumping data for table `studentbacklogs`
+--
+
+INSERT INTO `studentbacklogs` (`studentId`, `subjectId`) VALUES
+(19, 69),
+(19, 74),
+(19, 75),
+(19, 77),
+(1, 77),
+(1, 79),
+(1, 81),
+(2, 69),
+(2, 74),
+(4, 69),
+(4, 74),
+(14, 75),
+(14, 77);
 
 -- --------------------------------------------------------
 
@@ -472,6 +508,8 @@ CREATE TABLE IF NOT EXISTS `students` (
   `id` int(11) NOT NULL,
   `name` varchar(40) DEFAULT NULL,
   `batchId` int(11) DEFAULT NULL,
+  `semester` int(11) DEFAULT NULL,
+  `branch` varchar(40) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `batchId` (`batchId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
@@ -480,8 +518,14 @@ CREATE TABLE IF NOT EXISTS `students` (
 -- Dumping data for table `students`
 --
 
-INSERT INTO `students` (`id`, `name`, `batchId`) VALUES
-(1, 'us', 1);
+INSERT INTO `students` (`id`, `name`, `batchId`, `semester`, `branch`) VALUES
+(1, 'you', 1, 1, 'cse'),
+(2, 'abb', 28, 2, 'cse'),
+(3, 'qwe', 25, 1, 'ece'),
+(4, 'qwe', 25, 1, 'ece'),
+(14, '234', 28, 2, 'cse'),
+(19, 'unknown', 20, 1, 'cse'),
+(22, 'ew', 1, 1, 'cse');
 
 -- --------------------------------------------------------
 
@@ -553,22 +597,34 @@ CREATE TABLE IF NOT EXISTS `teachers` (
   `dept` varchar(40) DEFAULT NULL,
   `userId` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=10 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=22 ;
 
 --
 -- Dumping data for table `teachers`
 --
 
 INSERT INTO `teachers` (`id`, `name`, `dept`, `userId`) VALUES
-(1, 'baani', 'cse', NULL),
-(2, 'naami', 'cse', NULL),
-(3, 'gaami', 'cse', NULL),
-(4, 'abc', 'ece', NULL),
-(5, 'bbc', 'ece', NULL),
-(6, 'cbc', 'ece', NULL),
-(7, 'dbc', 'pd', NULL),
+(1, 'teacher1', 'cse', 15),
+(2, 'teacher2', 'cse', 16),
+(3, 'teacher3', 'cse', 17),
+(4, 'teacher4', 'ece', 18),
+(5, 'teacher5', 'ece', 19),
+(6, 'teacher6', 'ece', 20),
+(7, 'teacher7', 'pd', 21),
 (8, 'Utkarsh Siwach', 'cse', 1),
-(9, 'asd', 'cse', 0);
+(9, 'asd', 'cse', 0),
+(10, 'Sangeeta Singh', 'biotech', 2),
+(11, 'teacher11', 'biotech', 22),
+(12, 'teacher12', 'biotech', 23),
+(13, 'teacher13', 'maths', 24),
+(14, 'teacher14', 'maths', 25),
+(15, 'teacher15', 'maths', 25),
+(16, 'teacher16', 'maths', 26),
+(17, 'teacher17', 'physics', 27),
+(18, 'teacher18', 'physics', 28),
+(19, 'teacher19', 'physics', 29),
+(20, 'teacher20', 'physics', 30),
+(21, 'aaaa aaaa', 'cse', 3);
 
 -- --------------------------------------------------------
 
@@ -583,6 +639,19 @@ CREATE TABLE IF NOT EXISTS `teachersubjects` (
   KEY `teacherId` (`teacherId`),
   KEY `subjectId` (`subjectId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+--
+-- Dumping data for table `teachersubjects`
+--
+
+INSERT INTO `teachersubjects` (`teacherId`, `preference`, `subjectId`) VALUES
+(10, 1, 104),
+(10, 2, 102),
+(8, 1, 96),
+(8, 2, 81),
+(8, 3, 85),
+(8, 4, 101),
+(8, 5, 100);
 
 -- --------------------------------------------------------
 
@@ -607,13 +676,15 @@ CREATE TABLE IF NOT EXISTS `users` (
   `ModifiedIP` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`Email`,`Phone`,`UserID`),
   UNIQUE KEY `UserID` (`UserID`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=2 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=4 ;
 
 --
 -- Dumping data for table `users`
 --
 
 INSERT INTO `users` (`UserID`, `FName`, `LName`, `Email`, `Phone`, `Password`, `Gender`, `Department`, `CreatedBy`, `CreatedDate`, `CreatedIP`, `ModifiedBy`, `ModifiedDate`, `ModifiedIP`) VALUES
+(3, 'aaaa', 'aaaa', 'aa@aa.com', '', '74b87337454200d4d33f80c4663dc5e5', 'm', 'cse', NULL, '2015-02-28 14:20:55', '127.0.0.1', NULL, '2015-02-28 08:50:55', NULL),
+(2, 'Sangeeta', 'Singh', 'sangeeta2063@gmail.com', '', '7809b2a5b4dae0abe348aca4da22b1d8', 'f', 'biotech', NULL, '2014-12-27 01:16:36', '127.0.0.1', NULL, '2014-12-26 19:46:36', NULL),
 (1, 'Utkarsh', 'Siwach', 'utkarsh.siwach@gmail.com', '', '7809b2a5b4dae0abe348aca4da22b1d8', 'm', 'cse', NULL, '2014-12-12 18:22:40', '127.0.0.1', NULL, '2014-12-12 07:22:40', NULL);
 
 --
@@ -626,6 +697,13 @@ INSERT INTO `users` (`UserID`, `FName`, `LName`, `Email`, `Phone`, `Password`, `
 ALTER TABLE `batchsubjects`
   ADD CONSTRAINT `batchsubjects_ibfk_1` FOREIGN KEY (`subjectId`) REFERENCES `subjects` (`SID`) ON DELETE CASCADE,
   ADD CONSTRAINT `batchsubjects_ibfk_2` FOREIGN KEY (`batchId`) REFERENCES `batch` (`BID`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `studentbacklogs`
+--
+ALTER TABLE `studentbacklogs`
+  ADD CONSTRAINT `sb_fk_1` FOREIGN KEY (`studentId`) REFERENCES `students` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `sb_fk_2` FOREIGN KEY (`subjectId`) REFERENCES `subjects` (`SID`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `students`

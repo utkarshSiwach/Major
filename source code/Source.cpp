@@ -18,7 +18,6 @@
 #include<unordered_map>
 #include "MySqlCon.h"
 
-
 using namespace std;
 class Teachers;
 class Subjects;
@@ -108,13 +107,30 @@ public:
 };
 class Rooms {
 public:
+	
+	static int TUT_SIZE; // number of tut rooms
+	static int CLASS_SIZE1; //number of rooms for < 4 batches
+	static int CLASS_SIZE2; //number of rooms for >=4 batches
+	static int LAB_SIZE;  // number of labs
+	
 	int id;
 	string name;
 	int capacity;
+	int index;	// to find which column of ttArr is which room
 	string type;
 	void display();
 	static int fetchRecordsFromDB();
+	static int ttArrayIndexTORoomName(int,int,int,int);
+	static string nameFromIndex(int);
 };
+int Rooms::TUT_SIZE=0;
+int Rooms::CLASS_SIZE1=0;
+int Rooms::CLASS_SIZE2=0;
+int Rooms::LAB_SIZE=0;
+// will be updated in Rooms::fetchRecordsFromDB()
+// Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2 + Rooms::LAB_SIZE;
+int ROOM_SIZE;
+
 class Slots {
 public:
 	int id;
@@ -627,7 +643,7 @@ int Students::fetchBacklogsFromDB() {
 	}
 }
 
-int Rooms::fetchRecordsFromDB() {
+int Rooms::fetchRecordsFromDB() {	
 	MySqlDatabase oDB;
 	if(!oDB.createConn()) {
 		return 0;
@@ -637,6 +653,10 @@ int Rooms::fetchRecordsFromDB() {
 	if(n==0) {
 		return 0;
 	}
+	TUT_SIZE=0;
+	CLASS_SIZE1=0;
+	CLASS_SIZE2=0;
+	LAB_SIZE=0;
 	Rooms * room;
 	while(rs->next()) {
 		room = new Rooms();
@@ -645,9 +665,60 @@ int Rooms::fetchRecordsFromDB() {
 		room->capacity = rs->getInt(3);
 		room->type = rs->getString(4);
 		roomVector.push_back(room);
+
+		if(room->type == "lecture") {
+			if(room->capacity < 4)
+				CLASS_SIZE1++;
+			else
+				CLASS_SIZE2++;
+		}
+		else if(room->type == "tut") {
+			TUT_SIZE++;
+		}
+		else {
+			LAB_SIZE++;
+		}
 	}
+	ROOM_SIZE = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 + LAB_SIZE;
 	delete rs;
 	return 1;
+}
+// create mapping of column number of time table array
+// to room object record.
+// a is start of tut rooms, b small rooms, c large rooms, d labs
+int Rooms::ttArrayIndexTORoomName(int a,int b,int c, int d) {
+	int tempA=a;	// start of tut pos
+	int tempB=b;	// start of small rooms pos.
+	int tempC=c;	// start of large rooms pos.
+	int tempD=d;	// start of labs pos.
+	for(Rooms *room : roomVector) {
+		if(room->type == "tut") {
+			room->index = tempA;
+			tempA++;
+		}
+		else if (room->type == "lecture") {
+			if(room->capacity<4) {
+				room->index = tempB;
+				tempB++;
+			}
+			else {
+				room->index = tempC;
+				tempC++;
+			}
+		}
+		else { // lab
+			room->index = tempD;
+			tempD++;			
+		}
+	}
+}
+string Rooms::nameFromIndex(int j) {
+	for(Rooms * room :roomVector) {
+		if(room->index==j) {
+			return room->name;
+		}
+	}
+	return "not found";
 }
 
 void Teachers::display() {
@@ -680,11 +751,7 @@ void Rooms::display() {
 const int PERIODS = 44;
 const int BATCH_SIZE = 100;
 const int TEACH_SIZE = 100;
-const int TUT_SIZE = 4; // number of tut rooms
-const int CLASS_SIZE1 = 4; //number of rooms for 3 batches
-const int CLASS_SIZE2 = 4; //number of rooms for 4 batches
-const int LAB_SIZE = 4;  // number of labs
-const int ROOM_SIZE = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 + LAB_SIZE; 
+
 int **table = NULL;
 list<Slots*> placedList;
 //count number of iterations
@@ -693,9 +760,8 @@ int MAX_ITER = 0;	// will be set when input recv. in server request
 int MAX_UNPLACED = 0;	// will be set when input recv. in server request
 int fitnessFunc ();
 
-
-void result() {
 //display final timetable
+void result() {
 	std::cout<<"\nproducing results after completing "<<TT_COUNT<<" iterations\n";
 	for (int i =0 ; i < PERIODS ;i++) {
 		for (int j =0 ; j< ROOM_SIZE; j++) {
@@ -713,6 +779,124 @@ void result() {
 	std::cout<<"\n";
 }
 
+void iterateTT_part(int i) {
+	list<Slots*>::iterator it;
+			it = slotList.begin();
+			
+			int a = Rooms::TUT_SIZE;	// class1 pos
+			int b = Rooms::TUT_SIZE + Rooms::CLASS_SIZE1; // class2 pos
+			int c = 0;	// tut pos
+			int d = Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2; // lab pos
+
+			while (c < Rooms::TUT_SIZE && table[i][c] != 0) c++;
+			while (a < (Rooms::TUT_SIZE + Rooms::CLASS_SIZE1) && table[i][a] != 0) a++;
+			while (b < (Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2) && table[i][b] != 0) b++;
+			while (d < (ROOM_SIZE) && table[i][d]!= 0) d++; 
+
+			//std::cout<<a<<"\t"<<b<<"\t"<<c<<"\t"<<d;
+
+			while (!slotList.empty() && it != slotList.end()) {
+
+				if ((*it)->subject->type == "lecture") { /*subject-type = 'lecture'*/
+					//std::cout<<"Lecture..\n";
+					if ( (*it)->batch->id.size() < 3 ) { /*ls-size == 3*/
+						if ((a < (Rooms::TUT_SIZE + Rooms::CLASS_SIZE1) ) && (table[i][a] == 0) ) {
+
+							table[i][a] = (*it)->id;
+							a++;
+							//remove slot from unplaced list
+							placedList.push_back((*it));
+							list<Slots*>::iterator node;
+							node = it;
+							++it;
+							//std::cout<<"assigned lecct";
+							slotList.remove((*node));
+							//++it;
+						}
+						else {
+							while (a < (Rooms::TUT_SIZE + Rooms::CLASS_SIZE1) && table[i][a] != 0) a++;
+							//don't assign, move to next vector	
+							++it;
+						}
+					}
+					else {
+						if ((b < Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2 ) && (table[i][b] == 0) ) {
+
+							table[i][b] = (*it) -> id;
+							b++;
+							//remove slot from unplaced list
+							placedList.push_back((*it));
+							list<Slots*>::iterator node;
+							node = it;
+							++it;
+							//std::cout<<"Lecture placed.\n";
+							//std::cout<<"assigned lect";
+							slotList.remove((*node));
+							//++it;
+						}
+						else {
+							//don't assign, move on to next vector entry
+							while (b < (Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2) && table[i][b] != 0) b++;
+							++it;
+						}
+					}
+				}
+				else if ((*it) -> subject -> type == "tut") { /*subject-type = 'tut'''*/
+					//std::cout<<"Tut..\n";
+					if ((c < Rooms::TUT_SIZE ) && (table[i][c] == 0)) {
+
+						table[i][c] = (*it) -> id;
+						c++;
+						//remove from unplaced subj list
+						placedList.push_back((*it));
+						list<Slots*>::iterator node;
+						node = it;
+						++it;
+						//std::cout<<"Tut placed\n";
+						//std::cout<<"assigned tut";
+						slotList.remove((*node));
+						//++it;
+					}
+					else {
+						//don't assign, move on to next vector entry
+						while (c < Rooms::TUT_SIZE && table[i][c] != 0) c++;
+						++it;
+
+					}
+				}
+				else {
+					//std::cout<<"Lab.\n";
+
+					if ((i < PERIODS - 1)  && (d < (ROOM_SIZE - 1 )) && (table[i][d] == 0) && (table[i + 1][d] == 0) ) {
+						/*lab blocked for 2 hours*/
+						table[i][d] = (*it) -> id ;
+						table[i + 1][d] =  (*it) -> id;
+
+						d++;
+						//remove from unplaced list
+						placedList.push_back((*it));
+						list<Slots*>::iterator node;
+						node = it;
+						++it;
+						//std::cout<<"Lab placed..\n";
+						//std::cout<<"assigned lab";
+						slotList.remove((*node));
+						//++it;
+					}
+					else {
+						//don't assign, move on to next vector entry
+						while (d < (ROOM_SIZE) && table[i][d]!= 0) d++; 
+						++it;
+
+					}
+
+					//++it;
+				}
+			}
+			it = slotList.begin();
+			//go to next time slot
+			//++i;
+}
 void iterateTT(int unplacedNos) {
 	int aa = unplacedNos;
 	while (aa>5 && TT_COUNT < MAX_ITER) {
@@ -720,263 +904,20 @@ void iterateTT(int unplacedNos) {
 		int number = rand() % PERIODS + 1;
 		int i = number; //starting point of i 
 		while (i < PERIODS) {
-
 			// create timetable for i to Periods
-
-			list<Slots*>::iterator it;
-			it = slotList.begin();
-			int a = TUT_SIZE, b = TUT_SIZE + CLASS_SIZE1, c = 0, d = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2; // a : class1 pos, b : class2 pos, c : tut pos, d: lab pos
-
-			while (c < TUT_SIZE && table[i][c] != 0) c++;
-			while (a < (TUT_SIZE + CLASS_SIZE1) && table[i][a] != 0) a++;
-			while (b < (TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2) && table[i][b] != 0) b++;
-			while (d < (ROOM_SIZE) && table[i][d]!= 0) d++; 
-
-			//std::cout<<a<<"\t"<<b<<"\t"<<c<<"\t"<<d;
-
-			while (!slotList.empty() && it != slotList.end()) {
-
-				if ((*it)->subject->type == "lecture") { /*subject-type = 'lecture'*/
-					//std::cout<<"Lecture..\n";
-					if ( (*it)->batch->id.size() < 3 ) { /*ls-size == 3*/
-						if ((a < (TUT_SIZE + CLASS_SIZE1) ) && (table[i][a] == 0) ) {
-
-							table[i][a] = (*it)->id;
-							a++;
-							//remove slot from unplaced list
-							placedList.push_back((*it));
-							list<Slots*>::iterator node;
-							node = it;
-							++it;
-							//std::cout<<"assigned lecct";
-							slotList.remove((*node));
-							//++it;
-						}
-						else {
-							while (a < (TUT_SIZE + CLASS_SIZE1) && table[i][a] != 0) a++;
-							//don't assign, move to next vector	
-							++it;
-						}
-					}
-					else {
-						if ((b < TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 ) && (table[i][b] == 0) ) {
-
-							table[i][b] = (*it) -> id;
-							b++;
-							//remove slot from unplaced list
-							placedList.push_back((*it));
-							list<Slots*>::iterator node;
-							node = it;
-							++it;
-							//std::cout<<"Lecture placed.\n";
-							//std::cout<<"assigned lect";
-							slotList.remove((*node));
-							//++it;
-						}
-						else {
-							//don't assign, move on to next vector entry
-							while (b < (TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2) && table[i][b] != 0) b++;
-							++it;
-						}
-
-
-					}
-
-				}
-				else if ((*it) -> subject -> type == "tut") { /*subject-type = 'tut'''*/
-					//std::cout<<"Tut..\n";
-					if ((c < TUT_SIZE ) && (table[i][c] == 0)) {
-
-						table[i][c] = (*it) -> id;
-						c++;
-						//remove from unplaced subj list
-						placedList.push_back((*it));
-						list<Slots*>::iterator node;
-						node = it;
-						++it;
-						//std::cout<<"Tut placed\n";
-						//std::cout<<"assigned tut";
-						slotList.remove((*node));
-						//++it;
-					}
-					else {
-						//don't assign, move on to next vector entry
-						while (c < TUT_SIZE && table[i][c] != 0) c++;
-						++it;
-
-					}
-				}
-				else {
-					//std::cout<<"Lab.\n";
-
-					if ((i < PERIODS - 1)  && (d < (ROOM_SIZE - 1 )) && (table[i][d] == 0) && (table[i + 1][d] == 0) ) {
-
-
-						/*lab blocked for 2 hours*/
-						table[i][d] = (*it) -> id ;
-						table[i + 1][d] =  (*it) -> id;
-
-						d++;
-						//remove from unplaced list
-						placedList.push_back((*it));
-						list<Slots*>::iterator node;
-						node = it;
-						++it;
-						//std::cout<<"Lab placed..\n";
-						//std::cout<<"assigned lab";
-						slotList.remove((*node));
-						//++it;
-					}
-					else {
-						//don't assign, move on to next vector entry
-						while (d < (ROOM_SIZE) && table[i][d]!= 0) d++; 
-						++it;
-
-					}
-
-					//++it;
-				}	
-
-
-			} 
-
-			it = slotList.begin();
-
-			//go to next time slot
-			++i;
+			iterateTT_part(i);
+			i++;
 		}
-
 		i = 0;
 		while (i < number) {
-
-			
-			list<Slots*>::iterator it;
-			it = slotList.begin();
-			int a = TUT_SIZE, b = TUT_SIZE + CLASS_SIZE1, c = 0, d = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2; // a : class1 pos, b : class2 pos, c : tut pos, d: lab pos
-
-			while (c < TUT_SIZE && table[i][c] != 0) c++;
-			while (a < (TUT_SIZE + CLASS_SIZE1) && table[i][a] != 0) a++;
-			while (b < (TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2) && table[i][b] != 0) b++;
-			while (d < (ROOM_SIZE) && table[i][d]!= 0) d++; 
-
-			//std::cout<<a<<"\t"<<b<<"\t"<<c<<"\t"<<d;
-
-			while (!slotList.empty() && it != slotList.end()) {
-
-				if ((*it)->subject->type == "lecture") { /*subject-type = 'lecture'*/
-					//std::cout<<"Lecture..\n";
-					if ( (*it)->batch->id.size() < 3 ) { /*ls-size == 3*/
-						if ((a < (TUT_SIZE + CLASS_SIZE1) ) && (table[i][a] == 0) ) {
-
-							table[i][a] = (*it)->id;
-							a++;
-							//remove slot from unplaced list
-							placedList.push_back((*it));
-							list<Slots*>::iterator node;
-							node = it;
-							++it;
-							//std::cout<<"assigned lecct";
-							slotList.remove((*node));
-							//++it;
-						}
-						else {
-							while (a < (TUT_SIZE + CLASS_SIZE1) && table[i][a] != 0) a++;
-							//don't assign, move to next vector	
-							++it;
-						}
-					}
-					else {
-						if ((b < TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 ) && (table[i][b] == 0) ) {
-
-							table[i][b] = (*it) -> id;
-							b++;
-							//remove slot from unplaced list
-							placedList.push_back((*it));
-							list<Slots*>::iterator node;
-							node = it;
-							++it;
-							//std::cout<<"Lecture placed.\n";
-							//std::cout<<"assigned lect";
-							slotList.remove((*node));
-							//++it;
-						}
-						else {
-							//don't assign, move on to next vector entry
-							while (b < (TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2) && table[i][b] != 0) b++;
-							++it;
-						}
-
-
-					}
-
-				}
-				else if ((*it) -> subject -> type == "tut") { /*subject-type = 'tut'''*/
-					//std::cout<<"Tut..\n";
-					if ((c < TUT_SIZE ) && (table[i][c] == 0)) {
-
-						table[i][c] = (*it) -> id;
-						c++;
-						//remove from unplaced subj list
-						placedList.push_back((*it));
-						list<Slots*>::iterator node;
-						node = it;
-						++it;
-						//std::cout<<"Tut placed\n";
-						//std::cout<<"assigned tut";
-						slotList.remove((*node));
-						//++it;
-					}
-					else {
-						//don't assign, move on to next vector entry
-						while (c < TUT_SIZE && table[i][c] != 0) c++;
-						++it;
-
-					}
-				}
-				else {
-					//std::cout<<"Lab.\n";
-
-					if ((i < PERIODS - 1)  && (d < (ROOM_SIZE - 1 )) && (table[i][d] == 0) && (table[i + 1][d] == 0) ) {
-
-
-						/*lab blocked for 2 hours*/
-						table[i][d] = (*it) -> id ;
-						table[i + 1][d] =  (*it) -> id;
-
-						d++;
-						//remove from unplaced list
-						placedList.push_back((*it));
-						list<Slots*>::iterator node;
-						node = it;
-						++it;
-						//std::cout<<"Lab placed..\n";
-						//std::cout<<"assigned lab";
-						slotList.remove((*node));
-						//++it;
-					}
-					else {
-						//don't assign, move on to next vector entry
-						while (d < (ROOM_SIZE) && table[i][d]!= 0) d++; 
-						++it;
-
-					}
-
-					//++it;
-				}	
-
-
-			} 
-
-			it = slotList.begin();
-			//go to next time slot
-			++i;
+			iterateTT_part(i);
+			i++;
 		}
 		TT_COUNT++;
 		aa = fitnessFunc();
 		cout<<" a "<<aa;
 		//result();
 	}
-
 }
 
 // removes conflicting slots from placedList and puts them back on soltList
@@ -1095,8 +1036,11 @@ void generateTable () {
 		}
 	}
 	int i = 0; 
-	int a = TUT_SIZE, b = TUT_SIZE + CLASS_SIZE1, c = 0, d = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2; // a : class1 pos, b : class2 pos, c : tut pos, d: lab pos
-
+	int a = Rooms::TUT_SIZE;	// class1 pos
+	int b = Rooms::TUT_SIZE + Rooms::CLASS_SIZE1; // class2 pos
+	int c = 0;	// tut pos
+	int d = Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2; // lab pos
+	Rooms::ttArrayIndexTORoomName(c,a,b,d);
 	//list<Slots*> placedList; // move elements here once inserted into tt
 
 	list<Slots*>::iterator it;
@@ -1105,20 +1049,20 @@ void generateTable () {
 	/*generate tt*/
 	int flag = 0;
 
-	do {
+	do {	// while (slotList.size() > 0 && i < PERIODS  );
 
 		//std::cout<<"at list head\n";
-		a = TUT_SIZE;
-		b = TUT_SIZE + CLASS_SIZE1;
-		c = 0;
-		d = TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2; // a : class1 pos, b : class2 pos, c : tut pos, d: lab pos
+		a = Rooms::TUT_SIZE;	// class1 pos
+		b = Rooms::TUT_SIZE + Rooms::CLASS_SIZE1; // class2 pos
+		c = 0;	// tut pos
+		d = Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2; // lab pos
 
-		do {
+		do {	// while (it != slotList.end());
 
 			if ((*it)->subject->type == "lecture") { /*subject-type = 'lecture'*/
 				//std::cout<<"Lecture..\n";
 				if ( (*it)->batch->id.size() < 3 ) { /*ls-size == 3*/
-					if ((table[i][a] == 0) && (a < TUT_SIZE + CLASS_SIZE1 )) {
+					if ((table[i][a] == 0) && (a < b )) {
 
 						table[i][a] = (*it)->id;
 						a++;
@@ -1137,7 +1081,7 @@ void generateTable () {
 					}
 				}
 				else {
-					if ((table[i][b] == 0) && (b < TUT_SIZE + CLASS_SIZE1 + CLASS_SIZE2 )) {
+					if ((table[i][b] == 0) && (b < d )) {
 
 						table[i][b] = (*it) -> id;
 						b++;
@@ -1154,14 +1098,11 @@ void generateTable () {
 						//don't assign, move on to next vector entry
 						++it;
 					}
-
-
 				}
-
 			}
 			else if ((*it) -> subject -> type == "tut") { /*subject-type = 'tut'''*/
 				//std::cout<<"Tut..\n";
-				if ((table[i][c] == 0) && (c < TUT_SIZE  )) {
+				if ((table[i][c] == 0) && (c < Rooms::TUT_SIZE  )) {
 
 					table[i][c] = (*it) -> id;
 					c++;
@@ -1184,7 +1125,6 @@ void generateTable () {
 				//std::cout<<"Lab.\n";
 				if ((table[i][d] == 0) && (table[i + 1][d] == 0)  && (d < ROOM_SIZE - 1 )) {
 
-
 					/*lab blocked for 2 hours*/
 					table[i][d] = (*it) -> id ;
 					table[i + 1][d] =  (*it) -> id;
@@ -1204,26 +1144,20 @@ void generateTable () {
 					++it;
 
 				}
-			}	
-
+			}
 
 		} while (it != slotList.end()); /*list of entities isn't traversed'*/
 
 		//std::cout <<"Done iterating for this slot\n";
 
 		it = slotList.begin();
-		//if ((*it) == NULL) flag = 1;
-
-		//std::cout<<slotList.size()<<"\n";
-		++i;
+		i++;
 	} while (slotList.size() > 0 && i < PERIODS  );
 
 	//std::cout << "Done iterating the timetable";
 	
 	TT_COUNT++;
-	//result();
-	//std::cout<<placedList.size();
-	//std::system("PAUSE");
+
 	int unplacedNos = fitnessFunc();
 	iterateTT(unplacedNos);
 }
@@ -1268,7 +1202,6 @@ int timeTableFunctions() {
 	Teachers::assignBatches();
 	
 	generateTable();
-
 	if(a!=0) {
 		return 102;
 	}
@@ -1305,8 +1238,8 @@ string dayJSON(string daySt,int s,int e) {
 					cout<<"no slot matched:"<<table[i][j];
 				}
 				string temp;
-				temp=temp+slot->batch->sem+","+slot->batch->name+","+
-					slot->subject->name+","+slot->teacher->name+","+to_string(j);
+				temp=slot->batch->sem+","+slot->batch->name+","+
+					slot->subject->name+" "+slot->subject->type+","+slot->teacher->name+","+Rooms::nameFromIndex(j);
 				time[ti].push_back(temp);
 			}
 		}
@@ -1380,8 +1313,8 @@ string saturdayJSON() {
 					cout<<"no slot matched:"<<table[i][j];
 				}
 				string temp;
-				temp=temp+slot->batch->sem+","+slot->batch->name+","+
-					slot->subject->name+","+slot->teacher->name+","+to_string(j);
+				temp=slot->batch->sem+","+slot->batch->name+","+
+					slot->subject->name+" "+slot->subject->type+","+slot->teacher->name+","+Rooms::nameFromIndex(j);
 				time[ti].push_back(temp);
 			}
 		}
@@ -1646,7 +1579,7 @@ int __cdecl main(void) {
 }
 
 // this main is to test functionality without web input
-int main11() {
+int main12() {
 	/*
 	a complete ordering needs to be maintained while calling fetch
 	data from db functions, only then will all objects be correctly
@@ -1704,7 +1637,9 @@ int main11() {
 		roomVector[i]->display();
 	}
 	cout<<endl;
+	MAX_ITER=5000;
 	generateTable();
+	result();
 	system("pause");
 	return 1;
 }

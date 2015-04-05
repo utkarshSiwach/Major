@@ -162,6 +162,49 @@ sap.ui.jsview("major1.rooms", {
 		oPanel4.addStyleClass("panelSpacing");
 		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,oPanel4);
 		
+		//Create a panel instance
+		var oPanel8 = new sap.ui.commons.Panel("ttFilters",{showCollapseIcon :false});
+		oPanel8.setAreaDesign(sap.ui.commons.enums.AreaDesign.Plain);
+		oPanel8.setBorderDesign(sap.ui.commons.enums.BorderDesign.Box);
+		//Set the title of the panel
+		oPanel8.setTitle(new sap.ui.core.Title({text:"Filters"}));
+		var textView1 = new sap.ui.commons.TextView({
+			text:"Select semesters to display\nUse ctrl for multi select"
+		});
+		var semListBox = new sap.ui.commons.ListBox("semFilterBox",{
+			allowMultiSelect:true,
+			items : [
+				new sap.ui.core.ListItem({text : 'first'}),
+				new sap.ui.core.ListItem({text : 'second'}),
+				new sap.ui.core.ListItem({text : 'third'}),
+				new sap.ui.core.ListItem({text : 'fourth'}),
+				new sap.ui.core.ListItem({text : 'fifth'}),
+				new sap.ui.core.ListItem({text : 'sixth'}),
+				new sap.ui.core.ListItem({text : 'seventh'}),
+				new	sap.ui.core.ListItem({text : 'eighth'})
+			],
+			select : oController.filtersSem
+		});
+		var textView2 = new sap.ui.commons.TextView({
+			text:"Enter batch names\nUse space between multiple batch names"
+		});
+		var textField1 = new sap.ui.commons.TextField("batchFilterText");
+		var textView3 = new sap.ui.commons.TextView({
+			text:"Enter room names\nUse space between multiple room names"
+		});
+		var textField2 = new sap.ui.commons.TextField("roomFilterText");
+		var textView4 = new sap.ui.commons.TextView({
+			text:"Enter teacher name"
+		});
+		var textField3 = new sap.ui.commons.TextField("teacherFilterText");
+		var oFilterBtn = new sap.ui.commons.Button({width:"130px",text:"Apply",press:oController.applyFilters});
+		var oRemFilterBtn = new sap.ui.commons.Button({width:"130px",text:"Remove Filters",press:oController.resetFilters});
+		var oBackBtn = new sap.ui.commons.Button({width:"130px",text:"Back",press:oController.showBegin});
+		oLayoutVertical = new sap.ui.layout.VerticalLayout({
+			content: [textView1,semListBox,textView2,textField1,textView3,textField2,textView4,textField3,oFilterBtn,oRemFilterBtn,oBackBtn]
+		});
+		oPanel8.addContent(oLayoutVertical);
+		oPanel8.addStyleClass("panelSpacing");
 		/////////////////////////////////////////////////
 		////////////////  things for center ////////////
 		
@@ -1147,7 +1190,7 @@ sap.ui.jsview("major1.rooms", {
 			visibleRowCount:5,
 			width:"100%",
 			selectionMode:sap.ui.table.SelectionMode.Single
-		});
+		}).setEditable(true);
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol1",{
 			label: new sap.ui.commons.Label({text:"9-10"}),
@@ -1237,20 +1280,6 @@ sap.ui.jsview("major1.rooms", {
 		oModel.refresh(true);
 		oTable6.setModel(oModel);
 		oTable6.bindRows("/modelData");
-		///// filters ////
-		var semFilter = new sap.ui.commons.DropdownBox("semFilter",{
-			items:[
-				new sap.ui.core.ListItem({text:"fisrt"}),
-				new sap.ui.core.ListItem({text:"second"}),
-				new sap.ui.core.ListItem({text:"third"}),
-				new sap.ui.core.ListItem({text:"fourth"}),
-				new sap.ui.core.ListItem({text:"fifth"}),
-				new sap.ui.core.ListItem({text:"sixth"}),
-				new sap.ui.core.ListItem({text:"seventh"}),
-				new sap.ui.core.ListItem({text:"eighth"})				
-			],
-			tooltip:"Semester"
-		});
 		
 		var oTable = new sap.ui.table.Table("tableUT",{
 			title:"Unplaced slots",

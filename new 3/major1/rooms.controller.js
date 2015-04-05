@@ -2,7 +2,8 @@ sap.ui.controller("major1.rooms", abc={
 
 	updateSubjectPrevType:"",	// used to hold the previous type of subject before update
 	updateSubjectPrevCode:"",	// used to hold the previous subject code of subject before update
-	
+	allBeginControls:null,		// used to hold all controls in the main begin area of the layout
+	ttJSON:null,				// used to hold the generated timetable json data
 /**
 * Called when a controller is instantiated and its View controls (if available) are already created.
 * Can be used to modify the View before it is displayed, to bind event handlers and do other one-time initialization.
@@ -239,12 +240,17 @@ sap.ui.controller("major1.rooms", abc={
 		else if(toDo ==="View Timetable") {		
 			var controls = layout.getContent("center");
 			if(controls.length!=0 && controls[0].sId === "allTimeTable") {
+				// view timetable is already placed, so remove it 
 				layout.removeAllContent("center");
 			}
-			else {
+			else { // place view timetable content
 				layout.removeAllContent("center");
 				layout.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.center,				
 					sap.ui.getCore().byId("allTimeTable"));
+				abc.allBeginControls = layout.getContent("begin");
+				layout.removeAllContent("begin");
+				layout.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,
+					sap.ui.getCore().byId("ttFilters"));
 			}
 		}
 		else if(toDo ==="Create Timetable") {			
@@ -328,8 +334,8 @@ sap.ui.controller("major1.rooms", abc={
 			alert("Type cannot be greater than 50 characters.");
 			return null;
 		}	
-		if (type!='lecture' && type!= 'lab' && type!= 'lecture+tut') {
-			alert("Room must be lecture, lab or lecture+tut");
+		if (type!='lecture' && type!= 'lab' && type!= 'tut') {
+			alert("Room must be lecture, lab or tut");
 			return null;
 		}
 		if ( capacity <=0 || capacity >= 5 ) {
@@ -1376,7 +1382,95 @@ sap.ui.controller("major1.rooms", abc={
 	},
 	
 	//////////////// timetable functions /////////////////
-	
+	showBegin: function() {
+		var layout = sap.ui.getCore().byId("BorderLayout1");
+		layout.removeAllContent("begin");
+		layout.removeAllContent("center");
+		for(var i=0;i<abc.allBeginControls.length;i++) {
+			layout.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,				
+				abc.allBeginControls[i]);
+		}
+	},
+	filtersSem: function(oEvent) {},
+	applyFilters: function() {
+		var semItems = sap.ui.getCore().byId("semFilterBox").getSelectedItems();
+		var sems = [];
+		for(var i=0;i<semItems.length;i++) {
+			sems.push(semItems[i].getText());
+		}
+		var batch = sap.ui.getCore().byId("batchFilterText").getValue();
+		var room = sap.ui.getCore().byId("roomFilterText").getValue();
+		var teacher = sap.ui.getCore().byId("teacherFilterText").getValue();
+		var allDays = ["tableT1","tableT1-2","tableT1-3","tableT1-4","tableT1-5","tableT1-6"];
+		var day;
+		for(day of allDays) {
+			var arrOr = sap.ui.getCore().byId(day).getModel().getData().modelData;
+			var arr = jQuery.extend(true, [], arrOr);
+			for( var time in arr[0]) {
+				for(var i =0;i<arr.length;i++) {				
+					if(arr[i][time]!="") {
+						var flag=false;
+						var str = arr[i][time].split(",");
+						if(sems.length>0 && !abc.filterMatchSem(str[0],sems)) {
+							arr[i][time]="";
+							flag=true;
+						}
+						else if(batch!="" && !abc.filterMatchBatch(str[1],batch)) {
+							arr[i][time]="";
+							flag=true;
+						}
+						else if(room!="" && !abc.filterMatchRoom(str[4],room)) {
+							arr[i][time]="";
+							flag=true;
+						}
+						else if(teacher!="" && !abc.filterMatchTeacher(str[3],teacher)) {
+							arr[i][time]="";
+							flag=true;
+						}
+						if(flag==true) {
+							for(var j=i;j<arr.length-1;j++) {
+								arr[j][time]=arr[j+1][time];
+							}
+							i--;
+							arr[j][time]="";
+						}
+					}
+				}
+			}		
+			sap.ui.getCore().byId(day).getModel().setData({modelData:arr});		
+		}		
+	},
+	filterMatchSem: function(str,sem) {
+		for(var i=0;i<sem.length;i++) {
+			if(str==sem) {
+				return true;
+			}
+		}
+		return false;
+	},
+	filterMatchBatch: function(str,batch) {
+		if(str.search(batch)!=-1)
+			return true;
+		return false;
+	},
+	filterMatchRoom: function(str,room) {
+		if(str==room)
+			return true;
+		return false;
+	},
+	filterMatchTeacher: function(str,teacher) {
+		if(str==teacher)
+			return true;
+		return false;
+	},
+	resetFilters: function() {
+		sap.ui.getCore().byId("tableT1").getModel().setData({modelData:abc.ttJSON.monday});
+		sap.ui.getCore().byId("tableT1-2").getModel().setData({modelData:abc.ttJSON.tuesday});
+		sap.ui.getCore().byId("tableT1-3").getModel().setData({modelData:abc.ttJSON.wednesday});
+		sap.ui.getCore().byId("tableT1-4").getModel().setData({modelData:abc.ttJSON.thursday});
+		sap.ui.getCore().byId("tableT1-5").getModel().setData({modelData:abc.ttJSON.friday});
+		sap.ui.getCore().byId("tableT1-6").getModel().setData({modelData:abc.ttJSON.saturday});
+	},
 	connectToCppServer: function() {
 		var elems = sap.ui.getCore().byId("createTTFormCont").getFormElements();
 		var fields = elems[0].getFields();
@@ -1395,15 +1489,15 @@ sap.ui.controller("major1.rooms", abc={
 				type:"POST",
 				data:{iterNos:iterNos},
 				success:function(data) {
-					var ttJSON = JSON.parse(data);
-					sap.ui.getCore().byId("tableT1").getModel().setData({modelData:ttJSON.monday});
-					sap.ui.getCore().byId("tableT1-2").getModel().setData({modelData:ttJSON.tuesday});
-					sap.ui.getCore().byId("tableT1-3").getModel().setData({modelData:ttJSON.wednesday});
-					sap.ui.getCore().byId("tableT1-4").getModel().setData({modelData:ttJSON.thursday});
-					sap.ui.getCore().byId("tableT1-5").getModel().setData({modelData:ttJSON.friday});
-					sap.ui.getCore().byId("tableT1-6").getModel().setData({modelData:ttJSON.saturday});
-					sap.ui.getCore().byId("tableUT").getModel().setData({modelData:ttJSON.unplacedSlots});
-					alert("Timetable created, number of unplaced slots :"+ttJSON.unplaced);
+					abc.ttJSON = JSON.parse(data);
+					sap.ui.getCore().byId("tableT1").getModel().setData({modelData:abc.ttJSON.monday});
+					sap.ui.getCore().byId("tableT1-2").getModel().setData({modelData:abc.ttJSON.tuesday});
+					sap.ui.getCore().byId("tableT1-3").getModel().setData({modelData:abc.ttJSON.wednesday});
+					sap.ui.getCore().byId("tableT1-4").getModel().setData({modelData:abc.ttJSON.thursday});
+					sap.ui.getCore().byId("tableT1-5").getModel().setData({modelData:abc.ttJSON.friday});
+					sap.ui.getCore().byId("tableT1-6").getModel().setData({modelData:abc.ttJSON.saturday});
+					sap.ui.getCore().byId("tableUT").getModel().setData({modelData:abc.ttJSON.unplacedSlots});
+					alert("Timetable created, number of unplaced slots :"+abc.ttJSON.unplaced);
 				},
 				error:function(oEvent) {
 					alert("error connecting to server");

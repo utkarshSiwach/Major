@@ -448,7 +448,9 @@ function addBacklog($id,$name,$bid,$batch,$sem,$branch,$subs) {
 			$str=$str.',('.$id.','.$subs[$i]["id"].')';
 		}	
 		$query='insert into studentbacklogs values '.$str;
-		mysqli_query($con,$query) or die(mysqli_error($con));	
+		mysqli_query($con,$query) or die(mysqli_error($con));
+		$query="call add_tuts($id)";
+		mysqli_query($con,$query) or die(mysqli_error($con));
 	}
 	echo "done";
 }

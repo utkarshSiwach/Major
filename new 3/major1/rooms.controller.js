@@ -276,7 +276,7 @@ sap.ui.controller("major1.rooms", abc={
 		var rowNum = sap.ui.getCore().byId("table1").getSelectedIndices();
 				
 		if(rowNum.length == 0) {
-			alert("Please select a row to delete it");
+			alert("Please select a row to edit it");
 			return 0;
 		}
 		var cells = rows[rowNum%10].getCells();
@@ -340,6 +340,10 @@ sap.ui.controller("major1.rooms", abc={
 		}
 		if ( capacity <=0 || capacity >= 5 ) {
 			alert("Capacity must be between 1-5 batches.");
+			return null;
+		}
+		if( type === "lab" && capacity!=1) {
+			alert("for a lab capacity can only be 1 per entry");
 			return null;
 		}
 		return [roomName,type,capacity,location];
@@ -1032,17 +1036,17 @@ sap.ui.controller("major1.rooms", abc={
 
 	editBacklog : function() {},
 	deleteBacklog : function() {
-		var arr=sap.ui.getCore().byId("table8").getModel().getData();
-		var rows = sap.ui.getCore().byId("table8").getRows();
-		var rowNum = sap.ui.getCore().byId("table8").getSelectedIndices();
+		var table = sap.ui.getCore().byId("table8");
+		var arr=table.getModel().getData();
+		var rows = table.getRows();
+		var rowNum = table.getSelectedIndices();
 				
 		if(rowNum.length == 0) {
 			alert("Please select a row to delete it");
 			return 0;
-		}		
-		var cells = rows[rowNum%10].getCells();
-		var cell = cells[0];
-		var i = parseInt(cell.getBindingContext().sPath.substring(11));
+		}
+		var i = parseInt(table.getContextByIndex(rowNum).sPath.substring(11));		
+		
 		var id = arr.modelData[i].id;
 		$.ajax({
 			url:"./major1/getRooms.php",
@@ -1221,17 +1225,36 @@ sap.ui.controller("major1.rooms", abc={
 		var formElems = sap.ui.getCore().byId("formC1Backlog").getFormElements();			
 		var fields = formElems[2].getFields();
 		var sem = fields[0].getValue();
+		fields = formElems[3].getFields();
+		var curBranch = fields[0].getValue();
 		var arr = sap.ui.getCore().byId("table2").getModel().getData().modelData;
+		var batchArr = sap.ui.getCore().byId("table3").getModel().getData().modelData;
 		var newarr = [];
-		for(var i =0;i<arr.length;i++) {
-			if(abc.isLess(arr[i].semester,sem)) {
-				newarr.push(arr[i]);
+		var subsToPut = [];
+		var semsToConsider = abc.getSemsToConsiderBacklog(sem);
+		var aSem;
+		for(aSem of semsToConsider) {
+			for(var i =0;i<batchArr.length;i++) {			
+				if(batchArr[i].branch==curBranch && batchArr[i].semester==aSem) {
+					subsToPut.push.apply(subsToPut,batchArr[i].subIds);
+					break;
+				}
+			}
+		}
+		for(var i=0;i<arr.length;i++) {
+			for(var j=0;j<subsToPut.length;j++) {
+				if(subsToPut[j].id==arr[i].id) {
+					newarr.push(arr[i]);
+					subsToPut.splice(j,1);
+					break;
+				}
 			}
 		}
 		sap.ui.getCore().byId("table2-10").getModel().setData({modelData:newarr});
 		abc.updateCurrentBatchChoices();
 	},
 	newBacklogBranchChange: function() {
+		abc.newBacklogSemChange();
 		abc.updateCurrentBatchChoices();
 	},
 	updateCurrentBatchChoices: function() {
@@ -1251,28 +1274,29 @@ sap.ui.controller("major1.rooms", abc={
 		}
 		sap.ui.getCore().byId("newBaklgBatchDD").getModel().setData({modelData:batches});
 	},
-	isLess: function(a,b) {
+	getSemsToConsiderBacklog: function(a) {
 		var arr = ["first","second","third","fourth","fifth","sixth","seventh","eighth"];
-		var aa,bb;
+		var aa;
+		var a2 = [];
 		for(var i =0;i<arr.length;i++) {
 			if(a===arr[i]) {
 				aa=i;
-			}
-			if(b===arr[i]) {
-				bb=i;
+				break;
 			}
 		}
-		return (aa<bb);
+		for(var i=0;i<aa;i++) {
+			a2.push(arr[i]);
+		}
+		return a2;
 	},
 	backlogSubjectChange: function() {
-		var rows = sap.ui.getCore().byId("table8").getRows();
-		var rowNum = sap.ui.getCore().byId("table8").getSelectedIndices();
+		var table =sap.ui.getCore().byId("table8"); 
+		var rows = table.getRows();
+		var rowNum = table.getSelectedIndices();
 		if(rowNum.length == 0) {
 			return 0;
 		}
-		var cells = rows[rowNum%10].getCells();
-		var cell = cells[0];
-		var i = parseInt(cell.getBindingContext().sPath.substring(11));		
+		var i = parseInt(table.getContextByIndex(rowNum).sPath.substring(11));
 		var arr = sap.ui.getCore().byId("table8").getModel().getData().modelData;
 		var ids = arr[i].subIds;
 		var student = arr[i];

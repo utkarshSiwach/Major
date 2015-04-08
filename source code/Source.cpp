@@ -24,6 +24,8 @@ class Subjects;
 class Batches;
 class Students;
 class Slots;
+
+
 class Teachers {
 public:
 	int id;
@@ -42,6 +44,8 @@ public:
 	void display();
 };
 int Teachers::maxTeachingHours = 16;
+
+
 class Subjects {
 public:
 	int id;
@@ -66,12 +70,22 @@ public:
 };
 int Subjects::maxPreferencesAllowed = 5;
 unordered_map<int,int> Subjects::subjectsAllocated;
+
+
 class Batches {
 public:
 	vector<int> id;
 	string name;
 	string type;
 	string sem;
+	// maximum number of backlogs allowed to attend a batch's particular subject class, 
+	// these are extra students(seniors)
+	static int maxBackAtt;
+
+	// uo_map(subject -> no. of backlogs): number of backlog students (seniors)
+	// currently associated with this batch's particular subject. init in Batches::fetchSubjectsFromDB()
+	unordered_map<Subjects*,int> currBackAtt;
+
 	// currently only those students that have backlogs, but the vector 
 	// can hold 'back free' students also
 	vector<Students *> studentArr; 
@@ -81,15 +95,23 @@ public:
 	static int fetchSubjectsFromDB();
 	static int groupBatchesForLectures();
 	static Batches* findBatch(int);
+	static int assignBacklogBatches();
+	static Batches* bestFitBatchForBacklog(string,int,unordered_map<Subjects*,int>);
 };
+int Batches::maxBackAtt = 10;
+
 
 // this class just contains a pairing of a backlog subject with
 // the backlog batch that will be assigned for it.
 class Backlogs {
 public:
+	// which subject the backlog is for
 	Subjects* subject;
+
+	// which batch the student will be attending the backlog in
 	Batches* batch;
 };
+
 
 // this class currently holds only those students that have
 // backlogs, though normal students can fit just as well
@@ -105,6 +127,8 @@ public:
 	static int fetchRecordsFromDB();
 	static int fetchBacklogsFromDB();
 };
+
+
 class Rooms {
 public:
 	
@@ -131,6 +155,7 @@ int Rooms::LAB_SIZE=0;
 // Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2 + Rooms::LAB_SIZE;
 int ROOM_SIZE;
 
+
 class Slots {
 public:
 	int id;
@@ -138,6 +163,8 @@ public:
 	Teachers * teacher;
 	Subjects * subject;
 };
+
+
 std::vector<Batches*> batchVector;
 std::vector<Teachers*> teacherVector;
 std::vector<Subjects*> subjectVector;
@@ -457,6 +484,7 @@ int Batches::fetchSubjectsFromDB() {
 		}
 		subject->numOfBatchesTakingIt++; // validate this
 		batch->subjectArr.push_back(subject);
+		batch->currBackAtt[subject]=0;
 	}
 	delete rs;
 	return 1;
@@ -481,7 +509,7 @@ int Batches::groupBatchesForLectures() {
 		}
 		sameSubs[allSubs].push_back(batch);	// add entry (unique list of Subjects -> batches taking them)
 	}
-	//int aa = 1;
+	Batches *b1,*b2,*b3; //b1,b2,b3 for correcting backlog entries
 	for(auto it = sameSubs.begin(); it!=sameSubs.end(); it++) {
 		//cout<<"\naa:"<<aa;
 		//aa++;
@@ -489,6 +517,7 @@ int Batches::groupBatchesForLectures() {
 		for(int i=0;tempL.size()>=3;i++) {
 			
 			Batches* curBatch = tempL.front();
+			b1=curBatch;
 			tempL.pop_front();
 			Batches * newBatch = new Batches();			
 			newBatch->id.push_back(curBatch->id[0]);
@@ -503,7 +532,9 @@ int Batches::groupBatchesForLectures() {
 				//cout<<" "<<bb;
 				//bb++;				
 				//cout<<(*it1)->name;
-				if((*it1)->type == "lecture") {					
+				if((*it1)->type == "lecture") {
+					//erase lecture entry from curBatch
+					curBatch->currBackAtt.erase(*it1);
 					curBatch->subjectArr.erase(it1);
 					it1--;
 					if(it1 == curBatch->subjectArr.end()) {
@@ -513,12 +544,14 @@ int Batches::groupBatchesForLectures() {
 			}
 
 			curBatch = tempL.front();
+			b2=curBatch;
 			tempL.pop_front();
 			newBatch->id.push_back(curBatch->id[0]);
 			newBatch->name += curBatch->name;
 			for(auto it1 = curBatch->subjectArr.begin();it1!=curBatch->subjectArr.end();it1++) {  // remove lecture from indi. batch
 				//cout<<(*it1)->name;
-				if((*it1)->type == "lecture") {					
+				if((*it1)->type == "lecture") {
+					curBatch->currBackAtt.erase(*it1);
 					curBatch->subjectArr.erase(it1);
 					it1--;
 					if(it1 == curBatch->subjectArr.end()) {
@@ -533,6 +566,7 @@ int Batches::groupBatchesForLectures() {
 			}
 			
 			curBatch = tempL.front();
+			b3=curBatch;
 			tempL.pop_front();
 			newBatch->id.push_back(curBatch->id[0]);
 			newBatch->name += curBatch->name;			
@@ -548,11 +582,13 @@ int Batches::groupBatchesForLectures() {
 				if((*it1)->type == "lecture") {
 					//to be done only once {
 					newBatch->subjectArr.push_back(*it1);
+					newBatch->currBackAtt[*it1]=0;
 					(*it1)->numOfBatchesTakingIt-=2;					
 					if(Subjects::subjectsAllocated.find((*it1)->id)!=Subjects::subjectsAllocated.end()) {
 						Subjects::subjectsAllocated[(*it1)->id]-=2;
 					}
 					// }
+					curBatch->currBackAtt.erase(*it1);
 					curBatch->subjectArr.erase(it1);
 					it1--;
 					if(it1 == curBatch->subjectArr.end()) {
@@ -561,6 +597,18 @@ int Batches::groupBatchesForLectures() {
 				}
 			}
 			batchVector.push_back(newBatch);
+			Backlogs back;
+			// now transfer backlog (seniors) of lecture types to new batch
+			for(Students* stud : studentVector) {
+				for(int i=0;i<stud->backs.size();i++) {
+					back=stud->backs[i];
+					if(back.subject->type=="lecture" && (back.batch==b1 || back.batch==b2 || back.batch==b3)) {
+						stud->backs[i].batch->currBackAtt[back.subject]--;						
+						newBatch->currBackAtt[back.subject]++;
+						stud->backs[i].batch=newBatch;
+					}
+				}
+			}
 		}
 
 	}
@@ -578,6 +626,98 @@ Batches* Batches::findBatch(int id) {
 	}
 	return NULL; // not found
 }
+
+int semToInt(string sem) {
+	string arr[] = {"first","second","third","fourth","fifth","sixth","seventh","eighth"};
+	for(int i=0;i<8;i++) {
+		if(sem==arr[i]) {
+			return i;
+		}
+	}
+	return -1;
+}
+int findSemForSub(Subjects* sub, string branch) {
+	for(Batches* batch : batchVector) {
+		if(batch->type == branch) {
+			for(Subjects* s :batch->subjectArr) {
+				if(s==sub) {
+					return semToInt(batch->sem);
+				}
+			}
+		}
+	}
+	return -1;
+}
+int Batches::assignBacklogBatches() {		
+	for(Batches* batch :batchVector) {		
+		unordered_map<Subjects*,int>subCnt[8];
+		for(Students* student : batch->studentArr) {
+			for(Backlogs back: student->backs) {
+				subCnt[findSemForSub(back.subject,batch->type)][back.subject]+=1;
+			}
+		}
+
+		Batches* bestBatch=NULL;
+		for(int i=0;i<8;i++) { // for each semester
+			bestBatch = bestFitBatchForBacklog(batch->type,i,subCnt[i]); //find best batch then update its currBackAtt
+			if(bestBatch!=NULL) {
+				auto itEnd = subCnt[i].end();
+				for(Subjects* tempSub : bestBatch->subjectArr) {
+					if(subCnt[i].find(tempSub)!=itEnd) {
+						bestBatch->currBackAtt[tempSub]+=subCnt[i][tempSub];
+
+						// for every backlog in this batch, assign the appropriate bestBatch
+						// which was found just now, when this is repeated for every semester
+						// every backlog in the batch gets a bestBatch if it was ever found.
+						for(Students* student : batch->studentArr) {
+							for(int j=0;j<student->backs.size();j++) {								
+								if(findSemForSub(student->backs[j].subject,batch->type)==i) {
+									student->backs[j].batch=bestBatch;
+								}
+							}
+						}
+
+					}
+				}
+			}
+			else { // find any batch that can hold it
+
+			}
+		}
+	}
+}
+
+Batches* Batches::bestFitBatchForBacklog(string branch,int sem, unordered_map<Subjects*,int>assoc) {
+	int max=0;
+	Batches* bestBatch=NULL;
+	for(Batches* batch : batchVector) {
+		if(batch->type == branch && semToInt(batch->sem)==sem) {
+			int sum=0;
+			int flag=0;
+			auto assocEnd = assoc.end();
+			for(Subjects* sub: batch->subjectArr) {
+				if(assoc.find(sub)!= assocEnd) { // subject is there in assoc also
+					int avail = maxBackAtt - batch->currBackAtt[sub]; // batch-subject slot is available/free
+					int temp = avail-assoc[sub];
+					if(temp< 0) {
+						flag=1;
+						break;
+					}
+					sum+=temp;
+				}
+			}
+			if(flag==0) {
+				if(sum>max) {
+					max=sum;
+					bestBatch=batch;
+				}
+			}
+		}
+	}
+	//cout<<" bestBatch:";bestBatch->display();
+	return bestBatch;
+}
+
 /////////////
 
 // fetches student id, name, batchId, semester and add them to studentVector
@@ -609,7 +749,6 @@ int Students::fetchRecordsFromDB() {
 	delete rs;
 	return 1;
 }
-
 Students * Students::findStudent(int id) {	
 	for(Students *temp:studentVector) {
 		if(temp->id==id) {
@@ -618,7 +757,6 @@ Students * Students::findStudent(int id) {
 	}
 	return NULL;	
 }
-
 int Students::fetchBacklogsFromDB() {
 	MySqlDatabase oDB;
 	if(!oDB.createConn()) {
@@ -643,6 +781,9 @@ int Students::fetchBacklogsFromDB() {
 	}
 }
 
+//////////////  rooms /////////
+
+// labs can have capacity only as one
 int Rooms::fetchRecordsFromDB() {	
 	MySqlDatabase oDB;
 	if(!oDB.createConn()) {
@@ -675,7 +816,7 @@ int Rooms::fetchRecordsFromDB() {
 		else if(room->type == "tut") {
 			TUT_SIZE++;
 		}
-		else {
+		else { // lab
 			LAB_SIZE++;
 		}
 	}
@@ -1195,8 +1336,9 @@ int timeTableFunctions() {
 		return 101;
 	}
 	Teachers::fetchSubjectsFromDB();
-	Batches::fetchSubjectsFromDB();
+	Batches::fetchSubjectsFromDB();	
 	Students::fetchBacklogsFromDB();
+	Batches::assignBacklogBatches();
 	Batches::groupBatchesForLectures();
 	int a = Teachers::assignSubjects();
 	Teachers::assignBatches();
@@ -1590,11 +1732,12 @@ int main12() {
 	4)Teachers::fetchSubjectsFromDB()
 	5)Students::fetchRecordsFromDB()
 	6)Batches::fetchSubjectsFromDB()
-	7)Students::fetchBacklogsFromDB()
-	8)Batches::groupBatchesForLectures()
-	9)Rooms::fetchRecordsFromDB()
-	10)Teachers::assignSubjects()
-	11)Teachers::assignBatches()
+	7Students::fetchBacklogsFromDB();
+	8)Batches::assignBacklogBatches();
+	9)Batches::groupBatchesForLectures()
+	10)Rooms::fetchRecordsFromDB()
+	11)Teachers::assignSubjects()
+	12)Teachers::assignBatches()
 	*/
 	int tempArr[5];
 	tempArr[0]=Subjects::fetchRecordsFromDB();
@@ -1612,8 +1755,9 @@ int main12() {
 		return 0;
 	}
 	Teachers::fetchSubjectsFromDB();
-	Batches::fetchSubjectsFromDB();
+	Batches::fetchSubjectsFromDB();		
 	Students::fetchBacklogsFromDB();
+	Batches::assignBacklogBatches();
 	Batches::groupBatchesForLectures();
 	cout<<" fn ret:"<<Teachers::assignSubjects()<<" | ";
 	Teachers::assignBatches();

@@ -3,7 +3,7 @@
 -- http://www.phpmyadmin.net
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 08, 2015 at 12:56 PM
+-- Generation Time: Apr 21, 2015 at 08:44 AM
 -- Server version: 5.1.42-community
 -- PHP Version: 5.4.16
 
@@ -1015,36 +1015,41 @@ CREATE TABLE IF NOT EXISTS `room` (
   `Capacity` int(10) NOT NULL,
   `Type` varchar(20) NOT NULL,
   `Location` varchar(20) NOT NULL,
+  `Branch` varchar(20) DEFAULT 'all',
   PRIMARY KEY (`RID`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=37 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=41 ;
 
 --
 -- Dumping data for table `room`
 --
 
-INSERT INTO `room` (`RID`, `Name`, `Capacity`, `Type`, `Location`) VALUES
-(1, 'g13', 2, 'lecture', 'Academic'),
-(2, 'TS1', 2, 'tut', 'Academic'),
-(4, 'g1', 3, 'lecture', 'Academic'),
-(5, 'g2', 3, 'lecture', 'Academic'),
-(6, 'g3', 4, 'lecture', 'Academic'),
-(8, 'g5', 4, 'lecture', 'Academic'),
-(9, 'g6', 4, 'lecture', 'Academic'),
-(10, 'g7', 4, 'lecture', 'Academic'),
-(11, 'cl1', 1, 'lab', 'Academic'),
-(12, 'cl2', 1, 'lab', 'Academic'),
-(13, 'MML', 1, 'lab', 'Academic'),
-(14, 'ts1', 2, 'tut', 'Academic'),
-(15, 'ts2', 1, 'tut', 'Academic'),
-(16, 'ts3', 1, 'tut', 'Academic'),
-(17, 'ts4', 1, 'tut', 'Academic'),
-(18, 'ts5', 1, 'tut', 'Academic'),
-(19, 'ts6', 1, 'tut', 'Academic'),
-(20, 'ts7', 1, 'tut', 'Academic'),
-(21, 'ts8', 1, 'tut', 'Academic'),
-(34, 'qwe', 2, 'tut', 'wer'),
-(35, 'asd23', 2, 'tut', 'asdd'),
-(36, 'lt6', 3, 'lecture', 'Academic');
+INSERT INTO `room` (`RID`, `Name`, `Capacity`, `Type`, `Location`, `Branch`) VALUES
+(1, 'g13', 2, 'lecture', 'Academic', 'all'),
+(2, 'TS1', 2, 'tut', 'Academic', 'all'),
+(4, 'g1', 3, 'lecture', 'Academic', 'all'),
+(5, 'g2', 3, 'lecture', 'Academic', 'all'),
+(6, 'g3', 4, 'lecture', 'Academic', 'all'),
+(8, 'g5', 4, 'lecture', 'Academic', 'all'),
+(9, 'g6', 4, 'lecture', 'Academic', 'all'),
+(10, 'g7', 4, 'lecture', 'Academic', 'all'),
+(11, 'cl1', 1, 'lab', 'Academic', 'cse'),
+(12, 'cl2', 1, 'lab', 'Academic', 'cse'),
+(13, 'MML', 1, 'lab', 'Academic', 'cse'),
+(14, 'ts1', 2, 'tut', 'Academic', 'all'),
+(15, 'ts2', 1, 'tut', 'Academic', 'all'),
+(16, 'ts3', 1, 'tut', 'Academic', 'all'),
+(17, 'ts4', 1, 'tut', 'Academic', 'all'),
+(18, 'ts5', 1, 'tut', 'Academic', 'all'),
+(19, 'ts6', 1, 'tut', 'Academic', 'all'),
+(20, 'ts7', 1, 'tut', 'Academic', 'all'),
+(21, 'ts8', 1, 'tut', 'Academic', 'all'),
+(34, 'qwe', 2, 'tut', 'wer', 'all'),
+(35, 'asd23', 2, 'tut', 'asdd', 'all'),
+(36, 'lt6', 3, 'lecture', 'Academic', 'all'),
+(37, 'ec lab', 1, 'lab', 'academic', 'ece'),
+(38, 'signals lab', 1, 'lab', 'academic', 'ece'),
+(39, 'bio lab', 1, 'lab', 'academic', 'biotech'),
+(40, 'physics lab', 1, 'lab', 'academic', 'physics');
 
 -- --------------------------------------------------------
 
@@ -1124,7 +1129,13 @@ INSERT INTO `studentbacklogs` (`studentId`, `subjectId`) VALUES
 (15, 87),
 (15, 103),
 (15, 146),
-(15, 149);
+(15, 149),
+(88, 79),
+(88, 81),
+(88, 83),
+(88, 84),
+(88, 80),
+(88, 82);
 
 -- --------------------------------------------------------
 
@@ -1156,7 +1167,8 @@ INSERT INTO `students` (`id`, `name`, `batchId`, `semester`, `branch`) VALUES
 (12, 'stu12', 59, 4, 'cse'),
 (13, 'stu13', 59, 4, 'cse'),
 (14, 'stu14', 70, 4, 'biotech'),
-(15, 'stu15', 70, 4, 'biotech');
+(15, 'stu15', 70, 4, 'biotech'),
+(88, 'stu88', 50, 3, 'ece');
 
 -- --------------------------------------------------------
 
@@ -1293,7 +1305,7 @@ CREATE TABLE IF NOT EXISTS `teachers` (
   `dept` varchar(40) DEFAULT NULL,
   `userId` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=45 ;
+) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=47 ;
 
 --
 -- Dumping data for table `teachers`
@@ -1341,7 +1353,9 @@ INSERT INTO `teachers` (`id`, `name`, `dept`, `userId`) VALUES
 (41, 'teacher41', 'pd', 48),
 (42, 'teacher42', 'pd', 49),
 (43, 'teacher43', 'physics', 50),
-(44, 'teacher44', 'physics', 51);
+(44, 'teacher44', 'physics', 51),
+(45, 'teacher45', 'cse', 52),
+(46, 'teacher46', 'cse', 53);
 
 -- --------------------------------------------------------
 

@@ -174,6 +174,9 @@ public:
 	Teachers * teacher;
 	Subjects * subject;
 	vector<softConstScore> sConst;
+	string _conflict;
+	string _noConflict;
+	string isProcessed;
 };
 
 
@@ -303,12 +306,13 @@ int Teachers::assignSubjects() {
 			// first find a teacher who is of the same dept.
 			// and is free for more subjects
 			int i = it->second;
-			int j=0;		
+			int j=0;	
+			int x=teacherVector.size();
 			Subjects *tempSub= Subjects::findSubject(it->first);
-			Teachers * tempT;
-			int loops = (Teachers::maxTeachingHours/(tempSub->hours))+1;	// no. of times to loop around looking for a teacher
-			
-			while(i>0 && loops>0) {	// i instances of this subjects remain, to be allocated		
+			Teachers * tempT;			
+			int loop = 0;
+
+			while(i>0 && loop<x) {	// i instances of this subjects remain, to be allocated		
 			
 				tempT=teacherVector[j];
 				if(tempT->dept == tempSub->branch && (tempT->hrsCurrentlyTeaching+tempSub->hours) <= Teachers::maxTeachingHours) {
@@ -316,9 +320,13 @@ int Teachers::assignSubjects() {
 					it->second--;
 					tempT->hrsCurrentlyTeaching+=tempSub->hours;
 					tempT->allocatedSubjects.push_back(tempSub);
+					loop=0;
+				}
+				else {
+					loop++;
 				}
 				j++;	// select next teacher in circular array fashion
-				if(j==teacherVector.size() ) {j=0; loops--;}
+				if(j==teacherVector.size() ) {j=0;}
 				
 			}
 			if(i>0) {
@@ -612,14 +620,31 @@ int Batches::groupBatchesForLectures() {
 			}
 			batchVector.push_back(newBatch);
 			Backlogs back;
+			bool updateBackBatches = FALSE;
+			Batches *studCurBatch;
 			// now transfer backlog (seniors) of lecture types to new batch
 			for(Students* stud : studentVector) {
+				updateBackBatches = FALSE;
+				studCurBatch = findBatch(stud->batchId);
 				for(int i=0;i<stud->backs.size();i++) {
 					back=stud->backs[i];
-					if(back.subject->type=="lecture" && (back.batch==b1 || back.batch==b2 || back.batch==b3)) {
-						stud->backs[i].batch->currBackAtt[back.subject]--;						
+					if(back.subject->type=="lecture" && (back.batch==b1 || back.batch==b2 || back.batch==b3)) {						
 						newBatch->currBackAtt[back.subject]++;
 						stud->backs[i].batch=newBatch;
+						studCurBatch->backBatches.erase(back.batch);
+						updateBackBatches = TRUE;
+					}
+				}
+				if(updateBackBatches) {
+					studCurBatch->backBatches.insert(newBatch);
+				}
+			}
+			for(Students* stud : studentVector) {
+				studCurBatch = findBatch(stud->batchId);
+				for(int i=0;i<stud->backs.size();i++) {
+					back=stud->backs[i];
+					if(back.subject->type=="tut" && (back.batch==b1 || back.batch==b2 || back.batch==b3)) {												
+						studCurBatch->backBatches.insert(back.batch);
 					}
 				}
 			}
@@ -1330,24 +1355,66 @@ void generateTable () {
 }
 ////////////////// old TT algo ends //////////////
 
-void shuffleList(int seed) {
+bool isSemLess(Slots* a, Slots *b) {
+	return semToInt(a->batch->sem) < semToInt(b->batch->sem);
+}
+
+int shuffleList(int seed) {
+	if(slotList.size()<2)
+		return 0;
+
 	srand(seed);
-	int sSize = slotList.size();
-	auto slotI = slotList.begin();
-	auto slotJ = slotI;
-	for(int i=0;i<sSize-1;i++) {
-		int a = rand()%(sSize-i); // get a random no. b/w 0,sSize-1
-		Slots *temp;
-		slotJ=slotI;
-		for(int j=0;j<a;j++) {
-			slotJ++;
-		}		
-		temp = *slotJ;
-		slotJ=slotList.erase(slotJ);
-		slotList.insert(slotJ,*slotI);		
-		slotI=slotList.erase(slotI);
-		slotList.insert(slotI,temp);
-		//slotI++;
+
+	slotList.sort(isSemLess);
+	struct col {
+		list<Slots*>::iterator semStart;
+		list<Slots*>::iterator semEnd;
+		int sSize;
+	};
+	col cols[8];
+	for(int i=0;i<8;i++) {
+		cols[i].sSize=0;
+	}
+
+	string arr[] = {"first","second","third","fourth","fifth","sixth","seventh","eighth"};
+	int semI = semToInt((*slotList.begin())->batch->sem);
+	
+	cols[semI].sSize = 0;
+	cols[semI].semStart = slotList.begin();
+	cols[semI].semEnd = cols[semI].semStart;
+
+	for(auto it = slotList.begin();it!=slotList.end();it++) {
+		if((*it)->batch->sem==arr[semI]) {
+			cols[semI].semEnd=it;
+			cols[semI].sSize++;
+		}
+		else {
+			semI++;
+			cols[semI].sSize = 1;
+			cols[semI].semStart = it;
+			cols[semI].semEnd = it;
+		}
+	}
+	for(int i=0;i<8;i++) {
+		if(cols[i].sSize>0) {
+			int sSize = cols[i].sSize;
+			auto slotI = cols[i].semStart;
+			auto slotJ = slotI;
+			for(int i=0;i<sSize-1;i++) {
+				int a = rand()%(sSize-i); // get a random no. b/w 0,sSize-1
+				Slots *temp;
+				slotJ=slotI;
+				for(int j=0;j<a;j++) {
+					slotJ++;
+				}		
+				temp = *slotJ;
+				slotJ=slotList.erase(slotJ);
+				slotList.insert(slotJ,*slotI);		
+				slotI=slotList.erase(slotI);
+				slotList.insert(slotI,temp);
+				//slotI++;
+			}
+		}
 	}
 }
 
@@ -1432,6 +1499,7 @@ bool teacherFreeForBreak(Teachers* teacher, int posI, bool isLab) {
 // if the slot requires a lab then it also checks the next time slot to see if the room is free
 bool isRoomFree(Slots* slot, int posI, int posJ) {
 	if(ttArr[posI][posJ]!=NULL) { // this room is taken
+		slot->_conflict =slot->_conflict+" "+to_string(posI)+","+to_string(posJ)+"-rNotFree";
 		return FALSE;
 	}
 	// room not yet taken
@@ -1470,6 +1538,7 @@ bool isRoomFree(Slots* slot, int posI, int posJ) {
 		}
 	}
 	if(!rMatches) { // room not according to requirement
+		slot->_conflict=slot->_conflict+" "+to_string(posI)+","+to_string(posJ)+"-rNotMatch";
 		return FALSE;
 	}
 	return TRUE;
@@ -1492,53 +1561,65 @@ bool batchMatches(Batches *a, Batches *b) {
 bool isTeacherAndBatchFree(Slots * slot, int posI) {
 
 	if(slot->subject->type=="lab" && (posI+1)%8==0) { // lab can't be on the last hr of a day
+		slot->_conflict=slot->_conflict+" "+to_string(posI)+"-labOnLastHr";
 		return FALSE;
 	}
 
 	if(posI<40 && isBreakPeriod(posI,slot->batch->sem)) { // don't check for breaks on sat
+		slot->_conflict=slot->_conflict+" "+to_string(posI)+"-isBreakPeriod";
 		return FALSE;
 	}
 	
 	for(int j=0;j<ROOM_SIZE;j++) {
 		if(ttArr[posI][j]!=NULL) {
 			if(ttArr[posI][j]->teacher == slot->teacher) {
+				slot->_conflict=slot->_conflict+" "+to_string(posI)+"-teacherNotFree";
 				return FALSE;
 			}
 			if(!batchMatches(ttArr[posI][j]->batch,slot->batch)) {
+				slot->_conflict=slot->_conflict+" "+to_string(posI)+"-batchNotFree";
 				return FALSE;
 			}
 			if(slot->batch->backBatches.find(ttArr[posI][j]->batch)!=slot->batch->backBatches.end()) {
+				slot->_conflict=slot->_conflict+" "+to_string(posI)+"-backBatchNotFree";
 				return FALSE;
 			}
 		}
 	}
 	//cout<<slot->id<<"  "<<posI; ////////////
 	if(posI<40 && !teacherFreeForBreak(slot->teacher,posI,FALSE)) {
+		slot->_conflict=slot->_conflict+" "+to_string(posI)+"-teacherNotFreeBreak";
 		return FALSE;
 	}
 
 	if(slot->subject->type=="lab") {
 		if(posI>=(PERIODS-1)) {
+			slot->_conflict=slot->_conflict+" "+to_string(posI)+"-labOnSatEnd";
 			return FALSE;
 		}
 		posI++;
 		if(posI<40 && isBreakPeriod(posI,slot->batch->sem)) {
+			slot->_conflict=slot->_conflict+" "+to_string(posI)+"-breakOnNxtHrLab";
 			return FALSE;
 		}	
 		for(int j=0;j<ROOM_SIZE;j++) {
 			if(ttArr[posI][j]!=NULL) {
 				if(ttArr[posI][j]->teacher == slot->teacher) {
+					slot->_conflict=slot->_conflict+" "+to_string(posI)+"-teacherNotFreeNxtHrLab";
 					return FALSE;
 				}
 				if(!batchMatches(ttArr[posI][j]->batch,slot->batch)) {
+					slot->_conflict=slot->_conflict+" "+to_string(posI)+"-batchNotFreeNxtHrLab";
 					return FALSE;
 				}
 				if(slot->batch->backBatches.find(ttArr[posI][j]->batch)!=slot->batch->backBatches.end()) {
+					slot->_conflict=slot->_conflict+" "+to_string(posI)+"-backBatchNotFreeNxtHrLab";
 					return FALSE;
 				}
 			}
 		}
 		if(posI<40 && !teacherFreeForBreak(slot->teacher,posI,TRUE)) {
+			slot->_conflict=slot->_conflict+" "+to_string(posI)+"-teacherNotFreeForBreakNxtHrLab";
 			return FALSE;
 		}
 	}
@@ -1686,8 +1767,9 @@ void placeEm() {
 	int c = Rooms::TUT_SIZE + Rooms::CLASS_SIZE1; // class2 pos	
 	int d = Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2; // lab pos
 	Rooms::ttArrayIndexTORoomName(a,b,c,d);
-	shuffleList(time(NULL)); // have to do this semester wise
-	for(auto it=slotList.begin();it!=slotList.end();it++) {
+	shuffleList(time(NULL)); // have to do this semester wise		
+	for(auto it=slotList.begin();it!=slotList.end();) {		
+		(*it)->isProcessed="yes";
 		bool isPlaced = FALSE;
 		for(int posI=0;posI<PERIODS;posI++) {			
 			if(isTeacherAndBatchFree(*it,posI)) {
@@ -1704,8 +1786,10 @@ void placeEm() {
 					jStart=d;
 					jEnd=ROOM_SIZE;
 				}
+				(*it)->_noConflict=(*it)->_noConflict+" "+to_string(posI)+"-tNbFree("+to_string(jStart)+","+to_string(jEnd)+")";
 				for(int j=jStart;j<jEnd;j++) {
 					if(isRoomFree(*it,posI,j)) {
+						(*it)->_noConflict=(*it)->_noConflict+" j:"+to_string(j)+"-rFree";
 						Slots::softConstScore s;
 						s.pos = posI*ROOM_SIZE+j;
 						s.score = getScore(*it,posI);
@@ -1725,6 +1809,7 @@ void placeEm() {
 			// (re)move last placed slot and try again
 			// if still not placed then restore placedList as it was
 			// before trying and move on to next one
+			it++;
 		}
 		if(isPlaced) {
 			int p = getBestPos(*it);
@@ -1735,7 +1820,7 @@ void placeEm() {
 			placedList.push_back(*it);
 			it=slotList.erase(it);
 		}
-	}
+	}	
 }
 
 int timeTableFunctions() {
@@ -1961,6 +2046,43 @@ string unplacedJSON() {
 	return out;
 }
 
+string notAllocatedJSON() {
+	string out=",\"unAllocatedSubs\":[";
+	Subjects *sub;
+	int isFirst=1;
+	for(auto it=Subjects::subjectsAllocated.begin();it!=Subjects::subjectsAllocated.end();it++) {
+		if(it->second!=0) {
+			sub=Subjects::findSubject(it->first);		
+			if(isFirst==1) {
+				out+="{ \"subject\":\""+sub->name+","+sub->type+","+sub->branch+"\",\"instances\":\""+to_string(it->second)+"\"}";
+				isFirst=0;
+			}
+			else {
+				out+=",{ \"subject\":\""+sub->name+","+sub->type+","+sub->branch+"\",\"instances\":\""+to_string(it->second)+"\"}";
+			}
+		}
+	}
+		out+="],";
+	return out;	
+}
+
+string teacherDataJSON() {
+	string out=",\"teachers\":[";
+	Subjects *sub;
+	int isFirst=1;
+	for(auto it=teacherVector.begin();it!=teacherVector.end();it++) {
+		if(isFirst==1) {
+			out+="{ \"name\":\""+(*it)->name+"\",\"dept\":\""+(*it)->dept+"\",\"hrs\":\""+to_string((*it)->hrsCurrentlyTeaching)+"\"}";
+			isFirst=0;
+		}
+		else {
+			out+=",{ \"name\":\""+(*it)->name+"\",\"dept\":\""+(*it)->dept+"\",\"hrs\":\""+to_string((*it)->hrsCurrentlyTeaching)+"\"}";
+		}	
+	}
+	out+="]";
+	return out;
+}
+
 string convertToJSON() {
 	string json = "";
 	string days[] = {"monday","tuesday","wednesday","thursday","friday"};
@@ -1973,6 +2095,7 @@ string convertToJSON() {
 	json+=saturdayJSON();
 	json+=",\"unplaced\":\""+to_string(slotList.size())+"\"";
 	json+=unplacedJSON();
+	json+=teacherDataJSON();
 	return json;
 }
 
@@ -2112,7 +2235,8 @@ int __cdecl main(void) {
 					respJSON+="\"some tables are empty, cannot generate time table\"";
 				}
 				if(status == 102) {
-					respJSON+="\"some subjects were left unallocated\",";
+					respJSON+="\"some subjects were left unallocated\"";
+					respJSON+=notAllocatedJSON();
 					respJSON+= convertToJSON();
 				}
 			}

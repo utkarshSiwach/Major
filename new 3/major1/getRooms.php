@@ -75,11 +75,11 @@ function displayRooms() {
 	echo "[";
 	$row=mysqli_fetch_array($result);
 	if($row) {
-		echo '{"roomName":"'.$row['Name'].'","type":"'.$row['Type'].'","capacity":"'.
+		echo '{"roomName":"'.$row['Name'].'","type":"'.$row['Type'].'","branch":"'.$row['Branch'].'","capacity":"'.
 			$row['Capacity'].'","location":"'.$row['Location'].'","id":"'.$row['RID'].'"}';
 	}
 	while($row=mysqli_fetch_array($result)) {
-		echo ',{"roomName":"'.$row['Name'].'","type":"'.$row['Type'].'","capacity":"'.
+		echo ',{"roomName":"'.$row['Name'].'","type":"'.$row['Type'].'","branch":"'.$row['Branch'].'","capacity":"'.
 		$row['Capacity'].'","location":"'.$row['Location'].'","id":"'.$row['RID'].'"}';
 	}
 	echo "]";
@@ -97,11 +97,12 @@ function updateRoom() {
 	
 	$type = $_POST['type'];
 	$name = $_POST['name'];
+	$branch = $_POST['branch'];
 	$cap = $_POST['cap'];
 	$id = $_POST['rid'];
 	$loc = $_POST['loc'];
 	
-	$query = "UPDATE ROOM SET Capacity='$cap', Type='$type', Name='$name',"
+	$query = "UPDATE ROOM SET Capacity='$cap', Type='$type', Branch ='$branch', Name='$name',"
 		."Location='$loc' WHERE RID = '$id' ";
 	$result = mysqli_query($con, $query) or die(mysqli_error($con));
 }
@@ -111,17 +112,18 @@ function addRoom() {
 	
 	$type = $_POST['type'];
 	$name = $_POST['name'];
+	$branch = $_POST['branch'];
 	$cap = $_POST['cap'];
 	$loc = $_POST['loc'];
-	$query = "insert into room (Name,Type,Capacity,Location) values ("
-		."'$name','$type',$cap,'$loc')";
+	$query = "insert into room (Name,Type,Capacity,Location,Branch) values ("
+		."'$name','$type',$cap,'$loc','$branch')";
 	$result = mysqli_query($con, $query) or die(mysqli_error($con));
 	
 	$query = "select last_insert_id()as id";
 	$result = mysqli_query($con, $query) or die(mysqli_error($con));
 	$row=mysqli_fetch_array($result);
 	if($row) {
-		echo '{"roomName":"'.$name.'","type":"'.$type.'","capacity":"'
+		echo '{"roomName":"'.$name.'","type":"'.$type.'","branch":"'.$branch.'","capacity":"'
 			.$cap.'","location":"'.$loc.'","id":"'.$row['id'].'"}';
 	}	
 }

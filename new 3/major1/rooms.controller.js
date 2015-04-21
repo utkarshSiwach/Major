@@ -105,6 +105,19 @@ sap.ui.controller("major1.rooms", abc={
 				}
 			}
 		});
+		
+		// fetch old timetable data
+		if(typeof localStorage.ttData != 'undefined') {
+			var table = sap.ui.getCore().byId("tableFiles");
+			var arr = table.getModel().getData().modelData;			
+			var t = localStorage.ttData;
+			var json = JSON.parse(t);
+			for(var i=0;i<json.length;i++) {
+				var obj = {name:json[i].name,pos:i};
+				arr.push(obj);
+			}
+			table.getModel().setData({modelData:arr});
+		}
 	},
 	logOff:function(){
 		$.ajax({
@@ -251,6 +264,10 @@ sap.ui.controller("major1.rooms", abc={
 				layout.removeAllContent("begin");
 				layout.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,
 					sap.ui.getCore().byId("ttFilters"));
+				layout.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,
+					sap.ui.getCore().byId("loadTT"));
+				layout.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,
+					sap.ui.getCore().byId("saveTT"));
 			}
 		}
 		else if(toDo ==="Create Timetable") {			
@@ -294,8 +311,10 @@ sap.ui.controller("major1.rooms", abc={
 			fields = formElems[1].getFields();
 			fields[0].setValue(arr.modelData[i].type);
 			fields = formElems[2].getFields();
-			fields[0].setValue(arr.modelData[i].capacity);
+			fields[0].setValue(arr.modelData[i].branch);
 			fields = formElems[3].getFields();
+			fields[0].setValue(arr.modelData[i].capacity);
+			fields = formElems[4].getFields();
 			fields[0].setValue(arr.modelData[i].location);
 			
 			layout.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.center,
@@ -321,12 +340,15 @@ sap.ui.controller("major1.rooms", abc={
 		var type = fields[0].getValue();
 		
 		fields = formElems[2].getFields();
-		var capacity = fields[0].getValue();
+		var branch = fields[0].getValue();
 		
 		fields = formElems[3].getFields();
+		var capacity = fields[0].getValue();
+		
+		fields = formElems[4].getFields();
 		var location = fields[0].getValue();
 		
-		if ( roomName == "" || type == "" || capacity == "" || location == "") {
+		if ( roomName == "" || type == "" || branch == "" || capacity == "" || location == "") {
 			alert("You cannot leave information blank");
 			return null;
 		}
@@ -338,6 +360,10 @@ sap.ui.controller("major1.rooms", abc={
 			alert("Room must be lecture, lab or tut");
 			return null;
 		}
+		if (branch!='cse' && branch!= 'ece' && branch!= 'biotech'&& branch!='physics' && branch!= 'maths' && branch!= 'all') {
+			alert("Branch must be cse, ece, biotech, physics, maths or all");
+			return null;
+		}
 		if ( capacity <=0 || capacity >= 5 ) {
 			alert("Capacity must be between 1-5 batches.");
 			return null;
@@ -346,7 +372,7 @@ sap.ui.controller("major1.rooms", abc={
 			alert("for a lab capacity can only be 1 per entry");
 			return null;
 		}
-		return [roomName,type,capacity,location];
+		return [roomName,type,branch,capacity,location];
 	},
 	
 	// is called when updated data needs to be validated and sent
@@ -372,8 +398,9 @@ sap.ui.controller("major1.rooms", abc={
 				rid:id,
 				name:data[0],
 				type:data[1],
-				cap:data[2],
-				loc:data[3]
+				branch:data[2],
+				cap:data[3],
+				loc:data[4]
 			},
 			success: function(data2) {
 				if(data2 === "login first") { alert(data2);}
@@ -381,8 +408,9 @@ sap.ui.controller("major1.rooms", abc={
 					arr.modelData[i].id = id;
 					arr.modelData[i].roomName = data[0];
 					arr.modelData[i].type = data[1];
-					arr.modelData[i].capacity = data[2];
-					arr.modelData[i].location = data[3];
+					arr.modelData[i].branch = data[2];
+					arr.modelData[i].capacity = data[3];
+					arr.modelData[i].location = data[4];
 					sap.ui.getCore().byId("table1").getModel().setData({modelData:arr.modelData});
 				}
 			},
@@ -438,8 +466,9 @@ sap.ui.controller("major1.rooms", abc={
 				toDo:"addRoom",
 				name:data[0],
 				type:data[1],
-				cap:data[2],
-				loc:data[3]
+				branch:data[2],
+				cap:data[3],
+				loc:data[4]
 			},
 			success: function(data) {
 				if(data === "login first") { alert(data);}
@@ -466,6 +495,9 @@ sap.ui.controller("major1.rooms", abc={
 				fields[0].setValue("");
 		
 				fields = formElems[3].getFields();
+				fields[0].setValue("");
+				
+				fields = formElems[4].getFields();
 				fields[0].setValue("");
 			}
 		});
@@ -1098,7 +1130,11 @@ sap.ui.controller("major1.rooms", abc={
 		for(var i =0;i<arr.length;i++) {
 			var oId = {id:arr[i].id};
 			subs.push(oId);
-		}		
+		}
+		if(subs.length == 0) {
+			alert("please enter at least one backlog");
+			return 0;
+		}
 		var dat = {
 			id:id,
 			name:name,
@@ -1198,7 +1234,13 @@ sap.ui.controller("major1.rooms", abc={
 		});	
 	},
 	addBacklogSubject1: function() {
+		var model = sap.ui.getCore().byId("table2-9").getModel();
+		var dat = model.getData().modelData||[];
 		
+		if(dat.length >7) {
+			alert("no more backlogs can be taken");
+			return 0;
+		}
 		var table = sap.ui.getCore().byId("table2-10");
 		var arr= table.getModel().getData();
 		var rows = table.getRows();
@@ -1216,8 +1258,7 @@ sap.ui.controller("major1.rooms", abc={
 		var id = fields[0].getValue();
 		var tmp = arr.modelData.splice(i,1);
 		sap.ui.getCore().byId("table2-10").getModel().setData({modelData:arr.modelData});					
-		var model = sap.ui.getCore().byId("table2-9").getModel();
-		var dat = model.getData().modelData||[];
+		
 		dat.push(tmp[0]);
 		model.setData({modelData:dat});		
 	},
@@ -1415,7 +1456,7 @@ sap.ui.controller("major1.rooms", abc={
 				abc.allBeginControls[i]);
 		}
 	},
-	filtersSem: function(oEvent) {},
+	filtersSem: function(oEvent) {}, // for live change of selecting sem to filter
 	applyFilters: function() {
 		var semItems = sap.ui.getCore().byId("semFilterBox").getSelectedItems();
 		var sems = [];
@@ -1488,6 +1529,11 @@ sap.ui.controller("major1.rooms", abc={
 		return false;
 	},
 	resetFilters: function() {
+		sap.ui.getCore().byId("semFilterBox").setSelectedIndex();
+		sap.ui.getCore().byId("batchFilterText").setValue();
+		sap.ui.getCore().byId("roomFilterText").setValue();
+		sap.ui.getCore().byId("teacherFilterText").setValue();
+		
 		sap.ui.getCore().byId("tableT1").getModel().setData({modelData:abc.ttJSON.monday});
 		sap.ui.getCore().byId("tableT1-2").getModel().setData({modelData:abc.ttJSON.tuesday});
 		sap.ui.getCore().byId("tableT1-3").getModel().setData({modelData:abc.ttJSON.wednesday});
@@ -1501,9 +1547,9 @@ sap.ui.controller("major1.rooms", abc={
 		var ip = fields[0].getValue();
 		fields = elems[1].getFields();
 		var port = fields[0].getValue();
-		fields = elems[2].getFields();	
-		var iterNos = fields[0].getValue();
-		var iter = parseInt(iterNos);
+		//fields = elems[2].getFields();	
+		//var iterNos = fields[0].getValue();
+		var iter = 50;//parseInt(iterNos);
 		if(iter < 0 || iter >999) {
 			alert("please enter a value between 0-999");
 			return 0;
@@ -1511,7 +1557,7 @@ sap.ui.controller("major1.rooms", abc={
 		$.ajax({
 				url:"http://"+ip+":"+port,
 				type:"POST",
-				data:{iterNos:iterNos},
+				data:{iterNos:50},
 				success:function(data) {
 					abc.ttJSON = JSON.parse(data);
 					sap.ui.getCore().byId("tableT1").getModel().setData({modelData:abc.ttJSON.monday});
@@ -1521,14 +1567,56 @@ sap.ui.controller("major1.rooms", abc={
 					sap.ui.getCore().byId("tableT1-5").getModel().setData({modelData:abc.ttJSON.friday});
 					sap.ui.getCore().byId("tableT1-6").getModel().setData({modelData:abc.ttJSON.saturday});
 					sap.ui.getCore().byId("tableUT").getModel().setData({modelData:abc.ttJSON.unplacedSlots});
-					alert("Timetable created, number of unplaced slots :"+abc.ttJSON.unplaced);
+					
+					alert("Timetable created, number of unplaced slots :"+abc.ttJSON.unplaced
+						+"\n"+abc.ttJSON.error_string);
 				},
 				error:function(oEvent) {
 					alert("error connecting to server");
 				}
 			});
 	},
-	
+	saveFile: function() {
+		abc.ttJSON.name = sap.ui.getCore().byId("saveFileName").getValue();
+		var oldItems = JSON.parse(localStorage.getItem("ttData")) || [];
+		oldItems.push(abc.ttJSON);
+		localStorage.setItem("ttData", JSON.stringify(oldItems));
+		alert("Saved");
+		sap.ui.getCore().byId("saveFileName").setValue("");
+	},
+	filesBtn: function(oEvent) {
+		var btn = oEvent.getSource();
+		var btn1 = sap.ui.getCore().byId(btn.getSelectedButton());
+		var id = parseInt(btn.getBindingContext().sPath.substring(11));
+		var arr = sap.ui.getCore().byId("tableFiles").getModel().getData().modelData;
+		var p = arr[id].pos;
+		var json = JSON.parse(localStorage.ttData);
+		
+		if(btn1.getTooltip_Text()=="open") {			
+			abc.ttJSON = json[p];
+			sap.ui.getCore().byId("tableT1").getModel().setData({modelData:abc.ttJSON.monday});
+			sap.ui.getCore().byId("tableT1-2").getModel().setData({modelData:abc.ttJSON.tuesday});
+			sap.ui.getCore().byId("tableT1-3").getModel().setData({modelData:abc.ttJSON.wednesday});
+			sap.ui.getCore().byId("tableT1-4").getModel().setData({modelData:abc.ttJSON.thursday});
+			sap.ui.getCore().byId("tableT1-5").getModel().setData({modelData:abc.ttJSON.friday});
+			sap.ui.getCore().byId("tableT1-6").getModel().setData({modelData:abc.ttJSON.saturday});
+			sap.ui.getCore().byId("tableUT").getModel().setData({modelData:abc.ttJSON.unplacedSlots});
+		}
+		else {
+			json.splice(p,1);
+			localStorage.setItem("ttData", JSON.stringify(json));
+			arr.splice(id,1);
+			sap.ui.getCore().byId("tableFiles").getModel().setData({modelData:arr});
+		}
+		btn.setSelectedButton();		
+	},
+	removeUnplaced: function(oEvent) {
+		var btn = oEvent.getSource();
+		var id = parseInt(btn.getBindingContext().sPath.substring(11));
+		var arr = sap.ui.getCore().byId("tableUT").getModel().getData().modelData;
+		arr.splice(id,1);
+		sap.ui.getCore().byId("tableUT").getModel().setData({modelData:arr});
+	},
 /**
 * Similar to onAfterRendering, but this hook is invoked before the controller's View is re-rendered
 * (NOT before the first rendering! onInit() is used for that one!).

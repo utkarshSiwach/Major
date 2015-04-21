@@ -16,6 +16,7 @@
 #include<string>
 #include<vector>
 #include<unordered_map>
+#include<unordered_set>
 #include "MySqlCon.h"
 
 using namespace std;
@@ -88,7 +89,10 @@ public:
 
 	// currently only those students that have backlogs, but the vector 
 	// can hold 'back free' students also
-	vector<Students *> studentArr; 
+	vector<Students *> studentArr;
+	// all distinct backlog batches(in one place) assigned to all
+	// the backs of each student in this batch
+	unordered_set<Batches *> backBatches;
 	vector<Subjects *> subjectArr;
 	void display();
 	static int fetchRecordsFromDB();
@@ -139,13 +143,16 @@ public:
 	
 	int id;
 	string name;
+	string branch;
 	int capacity;
 	int index;	// to find which column of ttArr is which room
 	string type;
+	
 	void display();
 	static int fetchRecordsFromDB();
 	static int ttArrayIndexTORoomName(int,int,int,int);
 	static string nameFromIndex(int);
+	static Rooms* getRoomFromIndex(int);
 };
 int Rooms::TUT_SIZE=0;
 int Rooms::CLASS_SIZE1=0;
@@ -158,10 +165,15 @@ int ROOM_SIZE;
 
 class Slots {
 public:
+	struct softConstScore {
+		int pos;
+		int score;
+	};
 	int id;
 	Batches * batch;
 	Teachers * teacher;
 	Subjects * subject;
+	vector<softConstScore> sConst;
 };
 
 
@@ -244,6 +256,7 @@ Teachers* Teachers::findTeacher(int id) {
 // assigned to a free teacher.
 // Returns 1 if it is unable to assign all subjects to a teacher, 0 otherwise
 int Teachers::assignSubjects() {
+	int isIncomplete = 0;
 	Subjects::initializeMap();
 	int i=0;
 	for(int prefNum=0;prefNum < Subjects::maxPreferencesAllowed; prefNum++) {
@@ -309,6 +322,7 @@ int Teachers::assignSubjects() {
 				
 			}
 			if(i>0) {
+				isIncomplete=1;
 				// no more teachers available to teach that subject
 				// raise exception!!
 				// either make one teacher teach more or club few batches together
@@ -317,7 +331,7 @@ int Teachers::assignSubjects() {
 		}
 	}
 	
-	return 0;	// all allocation done
+	return isIncomplete;	// all allocation done
 }
 // for every subject a batch is taking, find a teacher taking it
 // and assign him/her to that batch.
@@ -661,6 +675,7 @@ int Batches::assignBacklogBatches() {
 		for(int i=0;i<8;i++) { // for each semester
 			bestBatch = bestFitBatchForBacklog(batch->type,i,subCnt[i]); //find best batch then update its currBackAtt
 			if(bestBatch!=NULL) {
+				batch->backBatches.insert(bestBatch);				
 				auto itEnd = subCnt[i].end();
 				for(Subjects* tempSub : bestBatch->subjectArr) {
 					if(subCnt[i].find(tempSub)!=itEnd) {
@@ -805,6 +820,7 @@ int Rooms::fetchRecordsFromDB() {
 		room->name = rs->getString(2);
 		room->capacity = rs->getInt(3);
 		room->type = rs->getString(4);
+		room->branch = rs->getString(6);
 		roomVector.push_back(room);
 
 		if(room->type == "lecture") {
@@ -861,7 +877,15 @@ string Rooms::nameFromIndex(int j) {
 	}
 	return "not found";
 }
+Rooms* Rooms::getRoomFromIndex(int j) {
+	for(Rooms * room :roomVector) {
+		if(room->index==j) {
+			return room;
+		}
+	}
+	return NULL;
 
+}
 void Teachers::display() {
 	cout<<"\nTeacher id:"<<id<<" name:"<<name<<"\npref. subs:"<<preferredSubjects.size();
 	if(!allocatedSubjects.empty()) {
@@ -890,11 +914,13 @@ void Rooms::display() {
 // pick tt from here
 
 const int PERIODS = 44;
-const int BATCH_SIZE = 100;
-const int TEACH_SIZE = 100;
-
 int **table = NULL;
 list<Slots*> placedList;
+Slots ***ttArr = NULL; // 2d array of Slots*
+////////////// old TT algo /////////
+
+const int BATCH_SIZE = 100;
+const int TEACH_SIZE = 100;
 //count number of iterations
 int TT_COUNT = 0;
 int MAX_ITER = 0;	// will be set when input recv. in server request
@@ -1302,6 +1328,415 @@ void generateTable () {
 	int unplacedNos = fitnessFunc();
 	iterateTT(unplacedNos);
 }
+////////////////// old TT algo ends //////////////
+
+void shuffleList(int seed) {
+	srand(seed);
+	int sSize = slotList.size();
+	auto slotI = slotList.begin();
+	auto slotJ = slotI;
+	for(int i=0;i<sSize-1;i++) {
+		int a = rand()%(sSize-i); // get a random no. b/w 0,sSize-1
+		Slots *temp;
+		slotJ=slotI;
+		for(int j=0;j<a;j++) {
+			slotJ++;
+		}		
+		temp = *slotJ;
+		slotJ=slotList.erase(slotJ);
+		slotList.insert(slotJ,*slotI);		
+		slotI=slotList.erase(slotI);
+		slotList.insert(slotI,temp);
+		//slotI++;
+	}
+}
+
+// returns true if posI is 3,11,19,27 or 35 for odd sem
+// and 4,12,20,28 or 36 for even sem
+bool isBreakPeriod(int posI,string sem) {
+	int s = semToInt(sem);
+	if(s%2==0) {
+		switch(posI) {
+		case 4: return TRUE;
+		case 12: return TRUE;
+		case 20: return TRUE;
+		case 28: return TRUE;
+		case 36: return TRUE;
+		}
+	}
+	else {
+		switch(posI) {
+		case 3: return TRUE;
+		case 11: return TRUE;
+		case 19: return TRUE;
+		case 27: return TRUE;
+		case 35: return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+// returns TRUE if teacher is free for a break period
+// if not lab then if posI at 1200 hrs check for 1300hrs or if
+// posI at 1300hrs then check for 1200hrs for a free teacher time
+// lab can't be at 1200hrs as there would be no break for teacher
+// if lab at 1100hrs check if teacher free for break at 1300hrs
+// if lab at 1300hrs then check for 1200hrs
+bool teacherFreeForBreak(Teachers* teacher, int posI, bool isLab) {
+	
+	bool flag = FALSE;
+	if(!isLab) {
+		if((posI+5)%8==0) { // posI one of 3,11,19..
+			posI++;
+			flag=TRUE;
+		}
+		else if((posI+4)%8==0) { // posI one of 4,12,..
+			posI--;
+			flag=TRUE;
+		}
+		if(!flag) {
+			return TRUE;
+		}
+		for(int j=0;j<ROOM_SIZE;j++) {
+			if(ttArr[posI][j]!=NULL && ttArr[posI][j]->teacher==teacher) {
+				return FALSE;
+			}
+		}
+	}
+	else { // isLab		
+		if((posI+5)%8==0) // posI one of 3,11,..
+			return FALSE;
+		if((posI+6)%8==0) {
+			posI+=2;
+			flag=TRUE;
+		}
+		else if((posI+4)%8==0) {
+			posI--;
+			flag=TRUE;
+		}
+		if(!flag) {
+			return TRUE;
+		}
+		for(int j=0;j<ROOM_SIZE;j++) {
+			if(ttArr[posI][j]!=NULL && ttArr[posI][j]->teacher==teacher) {
+				return FALSE;
+			}
+		}
+	}
+	return TRUE;
+}
+
+
+// returns true if a room is  not occupied for a certain time slot and is appropriate
+// i.e. (if room type matches, capacity is in range, and if lab then branch matches) for the given slot
+// if the slot requires a lab then it also checks the next time slot to see if the room is free
+bool isRoomFree(Slots* slot, int posI, int posJ) {
+	if(ttArr[posI][posJ]!=NULL) { // this room is taken
+		return FALSE;
+	}
+	// room not yet taken
+	// see if room type matches, capacity in range, and if lab then branch matches
+	bool rMatches = FALSE;
+	string rTypeReq = slot->subject->type; // room type required
+	int bSizeReq = slot->batch->id.size(); // batch size required
+	string rBranchReq = slot->subject->branch; // room branch required, (for labs only)
+	Rooms *room = Rooms::getRoomFromIndex(posJ);
+	if(rTypeReq=="tut") {
+		if(posJ>=0 && posJ<Rooms::TUT_SIZE && bSizeReq<=room->capacity) {
+			// rType matches, capacity in range
+			rMatches = TRUE;
+		}
+		else {
+			rMatches = FALSE;
+		}
+	}
+	else if(rTypeReq=="lecture") {
+		if(posJ>=Rooms::TUT_SIZE && posJ<(Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2) 
+		 && bSizeReq<=room->capacity) {
+			// rType matches, capacity in range
+			rMatches = TRUE;
+		}
+		else {
+			rMatches = FALSE;
+		}
+	}
+	else if(rTypeReq=="lab") {
+		if(posJ>=(Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2) && posJ<ROOM_SIZE
+		 && rBranchReq == room->branch && posI<(PERIODS-1) && ttArr[posI+1][posJ]==NULL) {
+			 rMatches = TRUE;
+		}
+		else {
+			rMatches = FALSE;
+		}
+	}
+	if(!rMatches) { // room not according to requirement
+		return FALSE;
+	}
+	return TRUE;
+}
+
+bool batchMatches(Batches *a, Batches *b) {
+	if(a==b) {
+		return FALSE;
+	}
+	for(int i=0;i<a->id.size();i++) {
+		for(int j=0;j<b->id.size();j++) {
+			if(a->id[i]==b->id[j]) {
+				return FALSE;
+			}
+		}
+	}
+	return TRUE;
+}
+
+bool isTeacherAndBatchFree(Slots * slot, int posI) {
+
+	if(slot->subject->type=="lab" && (posI+1)%8==0) { // lab can't be on the last hr of a day
+		return FALSE;
+	}
+
+	if(posI<40 && isBreakPeriod(posI,slot->batch->sem)) { // don't check for breaks on sat
+		return FALSE;
+	}
+	
+	for(int j=0;j<ROOM_SIZE;j++) {
+		if(ttArr[posI][j]!=NULL) {
+			if(ttArr[posI][j]->teacher == slot->teacher) {
+				return FALSE;
+			}
+			if(!batchMatches(ttArr[posI][j]->batch,slot->batch)) {
+				return FALSE;
+			}
+			if(slot->batch->backBatches.find(ttArr[posI][j]->batch)!=slot->batch->backBatches.end()) {
+				return FALSE;
+			}
+		}
+	}
+	//cout<<slot->id<<"  "<<posI; ////////////
+	if(posI<40 && !teacherFreeForBreak(slot->teacher,posI,FALSE)) {
+		return FALSE;
+	}
+
+	if(slot->subject->type=="lab") {
+		if(posI>=(PERIODS-1)) {
+			return FALSE;
+		}
+		posI++;
+		if(posI<40 && isBreakPeriod(posI,slot->batch->sem)) {
+			return FALSE;
+		}	
+		for(int j=0;j<ROOM_SIZE;j++) {
+			if(ttArr[posI][j]!=NULL) {
+				if(ttArr[posI][j]->teacher == slot->teacher) {
+					return FALSE;
+				}
+				if(!batchMatches(ttArr[posI][j]->batch,slot->batch)) {
+					return FALSE;
+				}
+				if(slot->batch->backBatches.find(ttArr[posI][j]->batch)!=slot->batch->backBatches.end()) {
+					return FALSE;
+				}
+			}
+		}
+		if(posI<40 && !teacherFreeForBreak(slot->teacher,posI,TRUE)) {
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+// calculate the soft constraint score of placing the slot
+// at the given time
+int getScore(Slots *slot, int posI) {
+	int score=500;
+
+	int dStart,dEnd;
+	dStart=posI-(posI%8);
+	dEnd=dStart+8;
+	if(dEnd>=PERIODS)
+		dEnd-=4;
+
+	unordered_map<Subjects*,int> lectCount; // to count instances of a lecture in a day
+	int labCount = 0;
+	int tutCount = 0;
+
+	int labLPosB = -3; // lab last position for a batch
+	int lecLPosB = -2; // lecture last position for a batch
+	int contLecCntB = 0; // continuous lecture count for batch
+
+	int labLPosT = -3; // lab last position for a teacher
+	int lecLPosT = -2; // lecture last position for a teacher
+	int contLecCntT = 0; // continuous lecture count for teacher
+	//cout<<"\ndStart:"<<dStart<<" dEnd:"<<dEnd; /////////////
+	for(int i=dStart;i<dEnd;i++) {
+		for(int j=0;j<ROOM_SIZE;j++) {			
+			if(ttArr[i][j]!=NULL) {
+				if(ttArr[i][j]->batch==slot->batch) {
+					if(ttArr[i][j]->subject->type=="lecture") {
+						int a = lectCount[ttArr[i][j]->subject];
+						lectCount[ttArr[i][j]->subject]+=1;
+
+						if(lecLPosB==(i-1)) {
+							contLecCntB++;
+							if(contLecCntB >= 3) {
+								score-=40;
+							}
+						}
+						else {
+							contLecCntB=0;
+						}
+						lecLPosB=i;						
+					}
+					else if(ttArr[i][j]->subject->type=="lab") {
+						labCount++;
+
+						if(labLPosB==(i-2)) {
+							score-=40;
+						}
+
+						if(i==dStart) {
+							labLPosB = 0;
+						}
+						else if(!(ttArr[i-1][j]!=NULL && ttArr[i-1][j]->batch==slot->batch &&
+							ttArr[i-1][j]->subject==ttArr[i][j]->subject)) {
+							labLPosB=i;
+						}
+					}
+					else { // tut
+						tutCount++;
+					}
+				}
+				if(ttArr[i][j]->teacher==slot->teacher) {
+					if(ttArr[i][j]->subject->type=="lecture") {
+						
+						if(lecLPosT==(i-1)) {
+							contLecCntT++;
+							if(contLecCntT >= 3) {
+								score-=40;
+							}
+						}
+						else {
+							contLecCntT=0;
+						}
+						lecLPosT=i;						
+					}
+					else if(ttArr[i][j]->subject->type=="lab") {
+						
+						if(labLPosT==(i-2)) {
+							score-=40;
+						}
+
+						if(i==dStart) {
+							labLPosT = 0;
+						}
+						else if(!(ttArr[i-1][j]!=NULL && ttArr[i-1][j]->teacher==slot->teacher &&
+							ttArr[i-1][j]->subject==ttArr[i][j]->subject)) {
+							labLPosT=i;
+						}
+					}
+				}
+			}
+		}
+	}
+	for(auto it=lectCount.begin();it!=lectCount.end();it++) {
+		score-=(it->second-1)*40;
+	}
+	if(labCount>=2) {
+		score-=(labCount-2)*40;
+	}
+	if(tutCount>=3) {
+		score-=(tutCount-3)*40;
+	}
+	if(score!=500) {
+		cout<<" score"<<score;//<<" labC"<<labCount<<" tutCount"<<tutCount<<" lectCount"<<lectCount.size();
+	}
+	for(auto a=lectCount.begin();a!=lectCount.end();a++) {
+		if(a->second!=1) {
+			cout<<" lecCnt"<<a->second;
+		}
+	}
+
+	return score;
+}
+
+// get the maximum soft constraint score position
+// which was calculated for this slot
+int getBestPos(Slots* slot){
+	int max = slot->sConst[0].score;
+	int pos=slot->sConst[0].pos;
+	for(int i=1;i<slot->sConst.size();i++) {
+		if(slot->sConst[i].score>max) {
+			max=slot->sConst[i].score;
+			pos=slot->sConst[i].pos;
+		}
+	}
+	return pos;
+}
+
+void placeEm() {
+	ttArr = new Slots ** [PERIODS];
+	for (int i = 0 ; i< PERIODS; i++) {
+		ttArr[i] = new Slots* [ROOM_SIZE];
+		for (int j= 0; j < ROOM_SIZE; j++) {
+			ttArr[i][j] = NULL;
+		}
+	}
+	int a = 0;	// tut pos
+	int b = Rooms::TUT_SIZE;	// class1 pos
+	int c = Rooms::TUT_SIZE + Rooms::CLASS_SIZE1; // class2 pos	
+	int d = Rooms::TUT_SIZE + Rooms::CLASS_SIZE1 + Rooms::CLASS_SIZE2; // lab pos
+	Rooms::ttArrayIndexTORoomName(a,b,c,d);
+	shuffleList(time(NULL)); // have to do this semester wise
+	for(auto it=slotList.begin();it!=slotList.end();it++) {
+		bool isPlaced = FALSE;
+		for(int posI=0;posI<PERIODS;posI++) {			
+			if(isTeacherAndBatchFree(*it,posI)) {
+				int jStart,jEnd;
+				if((*it)->subject->type=="tut") {
+					jStart=a;
+					jEnd=b;
+				}
+				else if((*it)->subject->type=="lecture") {
+					jStart=b;
+					jEnd=d;
+				}
+				else {
+					jStart=d;
+					jEnd=ROOM_SIZE;
+				}
+				for(int j=jStart;j<jEnd;j++) {
+					if(isRoomFree(*it,posI,j)) {
+						Slots::softConstScore s;
+						s.pos = posI*ROOM_SIZE+j;
+						s.score = getScore(*it,posI);
+						(*it)->sConst.push_back(s);
+						if((*it)->subject->type=="lab") {
+							// as next pos is occupied by the just placed slot
+							// but wont show in any checks until it is picked as best choice
+							posI++;
+						}
+						isPlaced=TRUE;
+						break;
+					}
+				}
+			}
+		}
+		if(!isPlaced) {
+			// (re)move last placed slot and try again
+			// if still not placed then restore placedList as it was
+			// before trying and move on to next one
+		}
+		if(isPlaced) {
+			int p = getBestPos(*it);
+			ttArr[p/ROOM_SIZE][p%ROOM_SIZE] = *it;
+			if((*it)->subject->type=="lab") {
+				ttArr[(p/ROOM_SIZE)+1][p%ROOM_SIZE] = *it;
+			}
+			placedList.push_back(*it);
+			it=slotList.erase(it);
+		}
+	}
+}
 
 int timeTableFunctions() {
 
@@ -1342,8 +1777,8 @@ int timeTableFunctions() {
 	Batches::groupBatchesForLectures();
 	int a = Teachers::assignSubjects();
 	Teachers::assignBatches();
-	
-	generateTable();
+	placeEm();
+	//generateTable();
 	if(a!=0) {
 		return 102;
 	}
@@ -1371,14 +1806,16 @@ int maxSizeOfAnyList(list<string>time[],int siz) {
 string dayJSON(string daySt,int s,int e) {
 	Slots * slot;
 	list<string> time[8];
-	cout<<"in f "<<s<<e;
 	for(int j=0;j<ROOM_SIZE;j++) {		
 		for(int i=s,ti=0;i<e;i++,ti++) {
+			/*
 			if(table[i][j] != 0) { // get a string of all the details of the slot together
 				slot = findSlot(table[i][j]);
 				if(slot == NULL) {
 					cout<<"no slot matched:"<<table[i][j];
-				}
+				}*/
+			if(ttArr[i][j] != NULL) { // get a string of all the details of the slot together
+				slot = ttArr[i][j];				
 				string temp;
 				temp=slot->batch->sem+","+slot->batch->name+","+
 					slot->subject->name+" "+slot->subject->type+","+slot->teacher->name+","+Rooms::nameFromIndex(j);
@@ -1449,11 +1886,13 @@ string saturdayJSON() {
 	list<string> time[4];
 	for(int j=0;j<ROOM_SIZE;j++) {
 		for(int i=40,ti=0;i<44;i++,ti++) {
-			if(table[i][j] != 0) { // get a string of all the details of the slot together
+			/*if(table[i][j] != 0) { // get a string of all the details of the slot together
 				slot = findSlot(table[i][j]);
 				if(slot == NULL) {
 					cout<<"no slot matched:"<<table[i][j];
-				}
+				}*/
+			if(ttArr[i][j] != NULL) { // get a string of all the details of the slot together
+				slot = ttArr[i][j];				
 				string temp;
 				temp=slot->batch->sem+","+slot->batch->name+","+
 					slot->subject->name+" "+slot->subject->type+","+slot->teacher->name+","+Rooms::nameFromIndex(j);
@@ -1529,7 +1968,6 @@ string convertToJSON() {
 	for(int i=0;i<5;i++) {
 		s=i*8;
 		e=s+8;
-		cout<<" "<<s<<e;
 		json+=dayJSON(days[i],s,e);
 	}
 	json+=saturdayJSON();
@@ -1665,16 +2103,17 @@ int __cdecl main(void) {
 			int status = timeTableFunctions();			
 			
 			if(status == 0) {
-				respJSON+= "\"ok\", \"error string\": \"no error\",";
+				respJSON+= "\"ok\", \"error_string\": \"no error\",";
 				respJSON+= convertToJSON();
 			}
 			else {
-				respJSON+= "\"error\", \"error string\": ";
+				respJSON+= "\"error\", \"error_string\": ";
 				if(status == 101) {
 					respJSON+="\"some tables are empty, cannot generate time table\"";
 				}
 				if(status == 102) {
-					respJSON+="\"some subjects were left unallocated\"";
+					respJSON+="\"some subjects were left unallocated\",";
+					respJSON+= convertToJSON();
 				}
 			}
 			respJSON+="}";
@@ -1761,7 +2200,7 @@ int main12() {
 	Batches::groupBatchesForLectures();
 	cout<<" fn ret:"<<Teachers::assignSubjects()<<" | ";
 	Teachers::assignBatches();
-
+	/*
 	//display
 	for(unsigned int i=0;i<teacherVector.size();i++) {
 		teacherVector[i]->display();
@@ -1772,18 +2211,19 @@ int main12() {
 	for(unsigned int i=0;i<subjectVector.size();i++) {
 		subjectVector[i]->display();
 	}
-	/*
+	
 	for(unsigned int i=0;i<studentVector.size();i++) {
-	studentVector[i]->display();
-	}
-	*/
+		studentVector[i]->display();
+	}	
 	for(unsigned int i=0;i<roomVector.size();i++) {
 		roomVector[i]->display();
 	}
+	*/
 	cout<<endl;
 	MAX_ITER=5000;
-	generateTable();
-	result();
+	placeEm();
+	//generateTable();
+	//result();
 	system("pause");
 	return 1;
 }

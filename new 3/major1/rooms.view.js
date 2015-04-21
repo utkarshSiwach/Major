@@ -163,13 +163,13 @@ sap.ui.jsview("major1.rooms", {
 		oBorderLayout1.addContent(sap.ui.commons.layout.BorderLayoutAreaTypes.begin,oPanel4);
 		
 		//Create a panel instance
-		var oPanel8 = new sap.ui.commons.Panel("ttFilters",{showCollapseIcon :false});
+		var oPanel8 = new sap.ui.commons.Panel("ttFilters",{showCollapseIcon :true});
 		oPanel8.setAreaDesign(sap.ui.commons.enums.AreaDesign.Plain);
 		oPanel8.setBorderDesign(sap.ui.commons.enums.BorderDesign.Box);
 		//Set the title of the panel
 		oPanel8.setTitle(new sap.ui.core.Title({text:"Filters"}));
 		var textView1 = new sap.ui.commons.TextView({
-			text:"Select semesters to display\nUse ctrl for multi select"
+			text:"Select semester to display"
 		});
 		var semListBox = new sap.ui.commons.ListBox("semFilterBox",{
 			allowMultiSelect:true,
@@ -186,11 +186,11 @@ sap.ui.jsview("major1.rooms", {
 			select : oController.filtersSem
 		});
 		var textView2 = new sap.ui.commons.TextView({
-			text:"Enter batch names\nUse space between multiple batch names"
+			text:"Enter batch name"
 		});
 		var textField1 = new sap.ui.commons.TextField("batchFilterText");
 		var textView3 = new sap.ui.commons.TextView({
-			text:"Enter room names\nUse space between multiple room names"
+			text:"Enter room name"
 		});
 		var textField2 = new sap.ui.commons.TextField("roomFilterText");
 		var textView4 = new sap.ui.commons.TextView({
@@ -205,6 +205,69 @@ sap.ui.jsview("major1.rooms", {
 		});
 		oPanel8.addContent(oLayoutVertical);
 		oPanel8.addStyleClass("panelSpacing");
+		
+				
+		var oPanel9	= new sap.ui.commons.Panel("loadTT",{showCollapseIcon :true});
+		oPanel9.setAreaDesign(sap.ui.commons.enums.AreaDesign.Plain);
+		oPanel9.setBorderDesign(sap.ui.commons.enums.BorderDesign.Box);
+		//Set the title of the panel
+		oPanel9.setTitle(new sap.ui.core.Title({text:"Open file"}));
+		oPanel9.setCollapsed(true);
+		var oTableFiles = new sap.ui.table.Table("tableFiles",{
+			visibleRowCount:6,
+			width:"100%",
+			navigationMode:sap.ui.table.NavigationMode.Paginator,
+			selectionMode:sap.ui.table.SelectionMode.Single
+		});		
+		oTableFiles.addColumn(new sap.ui.table.Column({
+			label: new sap.ui.commons.Label({text:"File Name"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","name"),
+			sortProperty:"name"
+		}));
+		oTableFiles.addColumn(new sap.ui.table.Column({
+			label: new sap.ui.commons.Label({text:"Options"}),
+			template: new sap.ui.commons.SegmentedButton({
+				id:"fileOptions",
+				buttons:[
+					new sap.ui.commons.Button({
+						icon:"sap-icon://open-folder",						
+						iconSelected:"sap-icon://open-folder",
+						tooltip:"open"
+					}),
+					new sap.ui.commons.Button({
+						icon:"sap-icon://delete",
+						//iconHovered:"images/sb/list_hover.png",
+						iconSelected:"sap-icon://delete",
+						tooltip:"delete"
+					})
+				]
+			}).attachSelect(oController.filesBtn)
+		}));
+		var oModel = new sap.ui.model.json.JSONModel();		
+		oModel.setData({modelData:[]});
+		oModel.refresh(true);
+		oTableFiles.setModel(oModel);
+		oTableFiles.bindRows("/modelData");
+		oPanel9.addContent(oTableFiles);
+		oPanel9.addStyleClass("panelSpacing");
+		
+		var oPanel10	= new sap.ui.commons.Panel("saveTT",{showCollapseIcon :true});
+		oPanel10.setAreaDesign(sap.ui.commons.enums.AreaDesign.Plain);
+		oPanel10.setBorderDesign(sap.ui.commons.enums.BorderDesign.Box);
+		oPanel10.setCollapsed(true);
+		//Set the title of the panel
+		oPanel10.setTitle(new sap.ui.core.Title({text:"Save Timetable"}));
+		var saveTV = new sap.ui.commons.TextView({text:"Enter file name"});
+		var saveTF = new sap.ui.commons.TextField("saveFileName");
+		var saveBtn = new sap.ui.commons.Button("saveTtBtn",{
+			text:"Save",
+			press:oController.saveFile
+		});
+		oLayoutVertical = new sap.ui.layout.VerticalLayout({
+			content:[saveTV,saveTF,saveBtn]
+		});
+		oPanel10.addContent(oLayoutVertical);
+		oPanel10.addStyleClass("panelSpacing");
 		/////////////////////////////////////////////////
 		////////////////  things for center ////////////
 		
@@ -230,13 +293,19 @@ sap.ui.jsview("major1.rooms", {
 		}));
 		
 		oTable.addColumn(new sap.ui.table.Column("tabCol3",{
+			label: new sap.ui.commons.Label({text:"Branch"}),
+			template: new sap.ui.commons.TextView().bindProperty("text","branch"),
+			filterProperty:"branch"
+		}));
+		
+		oTable.addColumn(new sap.ui.table.Column("tabCol4",{
 			label: new sap.ui.commons.Label({text:"Capacity"}),
 			template: new sap.ui.commons.TextView().bindProperty("text","capacity"),
 			sortProperty:"capacity",
 			filterProperty:"capacity"
 		}));
 		
-		oTable.addColumn(new sap.ui.table.Column("tabCol4",{
+		oTable.addColumn(new sap.ui.table.Column("tabCol5",{
 			label: new sap.ui.commons.Label({text:"Location"}),
 			template: new sap.ui.commons.TextView().bindProperty("text","location"),
 			sortProperty:"location",
@@ -292,6 +361,15 @@ sap.ui.jsview("major1.rooms", {
 						new sap.ui.layout.form.FormElement({
 							label: new sap.ui.commons.Label({
 								text: "Type",
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
+							}),
+							fields: [new sap.ui.commons.TextField({
+								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
+							]
+						}),
+						new sap.ui.layout.form.FormElement({
+							label: new sap.ui.commons.Label({
+								text: "Branch",
 								layoutData: new sap.ui.layout.form.GridElementData({hCells: "3"})
 							}),
 							fields: [new sap.ui.commons.TextField({
@@ -1194,42 +1272,42 @@ sap.ui.jsview("major1.rooms", {
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol1",{
 			label: new sap.ui.commons.Label({text:"9-10"}),
-			template: new sap.ui.commons.TextView().bindProperty("text","nine")
+			template: new sap.ui.commons.TextField().bindProperty("value","nine").bindProperty("tooltip","nine")
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol2",{
 			label: new sap.ui.commons.Label({text:"10-11"}),
-			template: new sap.ui.commons.TextView().bindProperty("text","ten")
+			template: new sap.ui.commons.TextField().bindProperty("value","ten").bindProperty("tooltip","ten")
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol3",{
 			label: new sap.ui.commons.Label({text:"11-12"}),
-			template: new sap.ui.commons.TextView().bindProperty("text","eleven")
+			template: new sap.ui.commons.TextField().bindProperty("value","eleven").bindProperty("tooltip","eleven")
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol4",{
 			label: new sap.ui.commons.Label({text:"12-1"}),
-			template: new sap.ui.commons.TextView().bindProperty("text","twelve")
+			template: new sap.ui.commons.TextField().bindProperty("value","twelve").bindProperty("tooltip","twelve")
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol5",{
 			label: new sap.ui.commons.Label({text:"1-2"}),
-			template: new sap.ui.commons.TextView().bindProperty("text","one")
+			template: new sap.ui.commons.TextField().bindProperty("value","one").bindProperty("tooltip","one")
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol6",{
 			label: new sap.ui.commons.Label({text:"2-3"}),
-			template: new sap.ui.commons.TextView().bindProperty("text","two")
+			template: new sap.ui.commons.TextField().bindProperty("value","two").bindProperty("tooltip","two")
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol7",{
 			label: new sap.ui.commons.Label({text:"3-4"}),
-			template: new sap.ui.commons.TextView().bindProperty("text","three")
+			template: new sap.ui.commons.TextField().bindProperty("value","three").bindProperty("tooltip","three")
 		}));
 		
 		oTableT1.addColumn(new sap.ui.table.Column("tabTCol8",{
 			label: new sap.ui.commons.Label({text:"4-5"}),
-			template: new sap.ui.commons.TextView().bindProperty("text","four")
+			template: new sap.ui.commons.TextField().bindProperty("value","four").bindProperty("tooltip","four")
 		}));
 		oTableT1.addStyleClass("panelSpacing");
 		var oModel = new sap.ui.model.json.JSONModel();		
@@ -1292,6 +1370,15 @@ sap.ui.jsview("major1.rooms", {
 			label: new sap.ui.commons.Label({text:"Slots"}),
 			template: new sap.ui.commons.TextView().bindProperty("text","slot")
 		}));
+		oTable.addColumn(new sap.ui.table.Column("tabUTCol2",{
+			label: new sap.ui.commons.Label({text:"Remove"}),
+			template: new sap.ui.commons.Button({
+				icon:"sap-icon://delete",
+				iconSelected:"sap-icon://delete",
+				tooltip:"delete",
+				press:oController.removeUnplaced
+			})			
+		}));
 		oModel = new sap.ui.model.json.JSONModel();		
 		oModel.refresh(true);
 		oTable.setModel(oModel);
@@ -1328,17 +1415,7 @@ sap.ui.jsview("major1.rooms", {
 							fields: [new sap.ui.commons.TextField({
 								value:"27015",
 								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
-							]
-						}),
-						new sap.ui.layout.form.FormElement({
-							label: new sap.ui.commons.Label({
-								text: "Number of iterations",
-								layoutData: new sap.ui.layout.form.GridElementData({hCells: "4"})
-							}),
-							fields: [new sap.ui.commons.TextField({
-								value:"50",
-								layoutData: new sap.ui.layout.form.GridElementData({hCells: "auto"})})
-							]
+							]						
 						})
 					]
 				})

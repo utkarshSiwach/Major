@@ -8,6 +8,7 @@
 // #pragma comment (lib, "Mswsock.lib")
 #define DEFAULT_BUFLEN 512
 #define DEFAULT_PORT "27015"
+#define ALGO_IN_USE 2 // 1 for random, 2 for backtrack
 
 #include<iostream>
 #include<stdlib.h>
@@ -15,6 +16,7 @@
 #include<time.h>
 #include<string>
 #include<vector>
+#include<algorithm>
 #include<unordered_map>
 #include<unordered_set>
 #include "MySqlCon.h"
@@ -26,6 +28,7 @@ class Batches;
 class Students;
 class Slots;
 
+/////////////////////////////////////////////// 23 comp lab ///////////////
 
 class Teachers {
 public:
@@ -261,7 +264,6 @@ Teachers* Teachers::findTeacher(int id) {
 int Teachers::assignSubjects() {
 	int isIncomplete = 0;
 	Subjects::initializeMap();
-	int i=0;
 	for(int prefNum=0;prefNum < Subjects::maxPreferencesAllowed; prefNum++) {
 		Subjects * tempSub;
 
@@ -272,7 +274,7 @@ int Teachers::assignSubjects() {
 				break;
 			}
 			else {	// there are preferred subjects left for this teacher
-				tempSub=teacher->preferredSubjects[i];
+				tempSub=teacher->preferredSubjects[prefNum];
 				if(Subjects::subjectsAllocated[tempSub->id]!=0 && 
 					(teacher->hrsCurrentlyTeaching+tempSub->hours) <= Teachers::maxTeachingHours) {
 					Subjects::subjectsAllocated[tempSub->id]--;
@@ -1107,7 +1109,7 @@ void iterateTT(int unplacedNos) {
 		}
 		TT_COUNT++;
 		aa = fitnessFunc();
-		cout<<" a "<<aa;
+		//cout<<" a "<<aa;
 		//result();
 	}
 }
@@ -1395,16 +1397,18 @@ int shuffleList(int seed) {
 			cols[semI].semEnd = it;
 		}
 	}
+	
+	
 	for(int i=0;i<8;i++) {
 		if(cols[i].sSize>0) {
 			int sSize = cols[i].sSize;
 			auto slotI = cols[i].semStart;
 			auto slotJ = slotI;
-			for(int i=0;i<sSize-1;i++) {
-				int a = rand()%(sSize-i); // get a random no. b/w 0,sSize-1
+			for(int j=0;j<sSize-1;j++) {
+				int a = rand()%(sSize-j); // get a random no. b/w 0,sSize-1
 				Slots *temp;
 				slotJ=slotI;
-				for(int j=0;j<a;j++) {
+				for(int k=0;k<a;k++) {
 					slotJ++;
 				}		
 				temp = *slotJ;
@@ -1412,8 +1416,27 @@ int shuffleList(int seed) {
 				slotList.insert(slotJ,*slotI);		
 				slotI=slotList.erase(slotI);
 				slotList.insert(slotI,temp);
-				//slotI++;
+				if(j==0) {
+					cols[i].semStart=slotI;
+					cols[i].semStart--;
+				}
+				//slotI++; is not needed as it auto increments
 			}
+			
+			// now bring all labs of each sem. to start of list
+			// so that first all labs are allocated for each sem.
+			list<Slots*>::iterator lStartPos = cols[i].semStart;				
+			lStartPos++;
+			for(int j=1;j<cols[i].sSize-1;j++) {
+				if((*lStartPos)->subject->type=="lab") {					
+					slotList.insert(cols[i].semStart,*lStartPos);
+					cols[i].semStart--;
+					lStartPos=slotList.erase(lStartPos);
+				}
+				else {
+					lStartPos++;
+				}
+			}			
 		}
 	}
 }
@@ -1558,6 +1581,17 @@ bool batchMatches(Batches *a, Batches *b) {
 	return TRUE;
 }
 
+bool backlogBatchesConflict(Slots * slot,vector<Students*>studArr) {
+	for(Students* stud : studArr) {
+		for(Backlogs back : stud->backs) {
+			if(back.batch==slot->batch && back.subject==slot->subject) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 bool isTeacherAndBatchFree(Slots * slot, int posI) {
 
 	if(slot->subject->type=="lab" && (posI+1)%8==0) { // lab can't be on the last hr of a day
@@ -1580,7 +1614,7 @@ bool isTeacherAndBatchFree(Slots * slot, int posI) {
 				slot->_conflict=slot->_conflict+" "+to_string(posI)+"-batchNotFree";
 				return FALSE;
 			}
-			if(slot->batch->backBatches.find(ttArr[posI][j]->batch)!=slot->batch->backBatches.end()) {
+			if(backlogBatchesConflict(ttArr[posI][j],slot->batch->studentArr)) {
 				slot->_conflict=slot->_conflict+" "+to_string(posI)+"-backBatchNotFree";
 				return FALSE;
 			}
@@ -1666,21 +1700,22 @@ int getScore(Slots *slot, int posI) {
 						else {
 							contLecCntB=0;
 						}
-						lecLPosB=i;						
+						lecLPosB=i;
 					}
 					else if(ttArr[i][j]->subject->type=="lab") {
-						labCount++;
-
+						
 						if(labLPosB==(i-2)) {
 							score-=40;
 						}
 
 						if(i==dStart) {
 							labLPosB = 0;
+							labCount++;
 						}
 						else if(!(ttArr[i-1][j]!=NULL && ttArr[i-1][j]->batch==slot->batch &&
 							ttArr[i-1][j]->subject==ttArr[i][j]->subject)) {
 							labLPosB=i;
+							labCount++;
 						}
 					}
 					else { // tut
@@ -1728,21 +1763,28 @@ int getScore(Slots *slot, int posI) {
 	if(tutCount>=3) {
 		score-=(tutCount-3)*40;
 	}
+	if(slot->subject->type=="lab" && ( (posI+3)%8==0 || (posI+7)%8==0 ) ) {
+		score-=100;
+	}	
 	if(score!=500) {
-		cout<<" score"<<score;//<<" labC"<<labCount<<" tutCount"<<tutCount<<" lectCount"<<lectCount.size();
+	//	cout<<" score"<<score;//<<" labC"<<labCount<<" tutCount"<<tutCount<<" lectCount"<<lectCount.size();
 	}
 	for(auto a=lectCount.begin();a!=lectCount.end();a++) {
 		if(a->second!=1) {
-			cout<<" lecCnt"<<a->second;
+			//cout<<" lecCnt"<<a->second;
 		}
 	}
 
 	return score;
 }
 
+bool isSoftScoreLess(Slots::softConstScore a, Slots::softConstScore b) {
+	return a.score<b.score;	
+}
+
 // get the maximum soft constraint score position
 // which was calculated for this slot
-int getBestPos(Slots* slot){
+int getBestPos(Slots* slot){	
 	int max = slot->sConst[0].score;
 	int pos=slot->sConst[0].pos;
 	for(int i=1;i<slot->sConst.size();i++) {
@@ -1752,6 +1794,140 @@ int getBestPos(Slots* slot){
 		}
 	}
 	return pos;
+}
+int getSecondBestPos(Slots* slot) {
+	int max1 = slot->sConst[0].score;
+	int pos1 = slot->sConst[0].pos;
+	int max2 = max1;
+	int pos2 = pos1;
+
+	for(int i=1;i<slot->sConst.size();i++) {
+		if(slot->sConst[i].score>max2) {
+			max1=max2;
+			pos1=pos2;
+			max2=slot->sConst[i].score;
+			pos2=slot->sConst[i].pos;
+		}
+		else if (slot->sConst[i].score>max1) {
+			max1=slot->sConst[i].score;
+			pos1=slot->sConst[i].pos;
+		}		
+	}
+	return pos1;
+}
+
+// function to check if a slot can be placed in the timetable
+// the slot's sConst vector must be empty
+// to actually place it in the timetable more work is done by the calling fn.
+bool isPlacedNow(list<Slots*>::iterator it,int a,int b,int c,int d) {
+	(*it)->isProcessed="yes";
+	bool isPlaced = FALSE;
+	for(int posI=0;posI<PERIODS;posI++) {			
+		if(isTeacherAndBatchFree(*it,posI)) {
+			int jStart,jEnd;
+			if((*it)->subject->type=="tut") {
+				jStart=a;
+				jEnd=b;
+			}
+			else if((*it)->subject->type=="lecture") {
+				jStart=b;
+				jEnd=d;
+			}
+			else {
+				jStart=d;
+				jEnd=ROOM_SIZE;
+			}
+			(*it)->_noConflict=(*it)->_noConflict+" "+to_string(posI)+"-tNbFree("+to_string(jStart)+","+to_string(jEnd)+")";
+			for(int j=jStart;j<jEnd;j++) {
+				if(isRoomFree(*it,posI,j)) {
+					(*it)->_noConflict=(*it)->_noConflict+" j:"+to_string(j)+"-rFree";
+					Slots::softConstScore s;
+					s.pos = posI*ROOM_SIZE+j;
+					s.score = getScore(*it,posI);
+					(*it)->sConst.push_back(s);
+					if((*it)->subject->type=="lab") {
+						// as next pos is occupied by the just placed slot
+						// but wont show in any checks until it is picked as best choice
+						posI++;
+					}
+					isPlaced=TRUE;
+					break;
+				}
+			}
+		}
+	}
+	return isPlaced;
+}
+
+// for a slot not placed, find all possible slots that 
+// have same teacher/batch so that they can be placed in their next best
+// positions to make way for the unplaced slot, upto a given depth of placedList (say 60%)
+// returns a vector containing iterator positions of all such matching slots
+// the slot that was most recently placed and matches, is first in the vector
+vector <list<Slots*>::iterator> findLatestMatch(Slots* slot,int depth) {
+	if(depth >100 || depth <0) throw "domain error in depth";
+	auto tempIt = placedList.end();
+	tempIt--; // now points to the last placed
+	int depthI = 0;
+	int maxDepth = (placedList.size()*depth/100);
+	vector <list<Slots*>::iterator> retVector;
+	while(depthI<maxDepth && slot->batch->sem==(*tempIt)->batch->sem) {
+		if((*tempIt)->subject->type!="lab") {
+			if((*tempIt)->batch==slot->batch || (*tempIt)->teacher==slot->teacher) {
+				if((*tempIt)->sConst.size()>1) {
+					retVector.push_back(tempIt);
+				}
+			}
+		}
+		tempIt--;
+		depthI++;
+	}
+	return retVector;
+}
+
+// removes all slot entries present in the vector from ttArr
+void removeFromTTArr(list<Slots*> remList) {
+	auto it = remList.begin();
+	int pos;
+	while(it!=remList.end()) {
+		pos = getBestPos(*it);
+		ttArr[pos/ROOM_SIZE][pos%ROOM_SIZE] = NULL;
+		it++;
+	}
+}
+
+void addToTTarr(list<Slots*> addList) {
+	auto it = addList.begin();
+	int pos;
+	while(it!=addList.end()) {
+		pos = getBestPos(*it);
+		ttArr[pos/ROOM_SIZE][pos%ROOM_SIZE] = *it;
+		it++;
+	}
+}
+
+// clears the soft constraints vector of all slots present in the list of slots
+void clearSoftConstVec(list<Slots*>lst) {
+	auto it = lst.begin();
+	while(it!=lst.end()) {
+		(*it)->sConst.clear();
+		it++;
+	}
+}
+
+// removes the best soft constraint from the sConst vector of a slot
+void removeBestPos(Slots* slot) {
+	int max = slot->sConst[0].score;
+	int pos=slot->sConst[0].pos;
+	int posI = 0;
+	for(int i=1;i<slot->sConst.size();i++) {
+		if(slot->sConst[i].score>max) {
+			max=slot->sConst[i].score;
+			pos=slot->sConst[i].pos;
+			posI=i;
+		}
+	}	
+	slot->sConst.erase(slot->sConst.begin()+posI);
 }
 
 void placeEm() {
@@ -1809,10 +1985,94 @@ void placeEm() {
 			// (re)move last placed slot and try again
 			// if still not placed then restore placedList as it was
 			// before trying and move on to next one
-			it++;
+			vector<list<Slots*>::iterator> replacements = findLatestMatch(*it,60); // a vector of all iterators of possible replacements
+			list<Slots*> keptAside;
+			bool finallyPlaced = false;
+			Slots* fromHereSlot=NULL;
+			for(list<Slots*>::iterator fromHere : replacements) {
+				fromHere++;
+				keptAside.splice(keptAside.begin(),placedList,fromHere,placedList.end());
+				// have to remove all in keptAside from ttArr also////////////////				
+				removeFromTTArr(keptAside);
+				fromHere=placedList.end();
+				fromHere--;				
+				auto curPosUsedIt = (*fromHere)->sConst.end();				
+				curPosUsedIt--; // points to last pos.
+
+				while(curPosUsedIt!=(*fromHere)->sConst.begin()) {
+					int curPosUsed = (*curPosUsedIt).pos;
+					curPosUsedIt--;
+					int nextPos = (*curPosUsedIt).pos;
+					ttArr[curPosUsed/ROOM_SIZE][curPosUsed%ROOM_SIZE] = NULL;
+					ttArr[nextPos/ROOM_SIZE][nextPos%ROOM_SIZE] = *fromHere;
+			
+					if(isPlacedNow(it,a,b,c,d)) {
+						// do isPlaced stuff and
+						sort((*it)->sConst.begin(),(*it)->sConst.end(),isSoftScoreLess);
+						auto tempItP = (*it)->sConst.end();
+						tempItP--;
+						int p=(*tempItP).pos;
+						ttArr[p/ROOM_SIZE][p%ROOM_SIZE] = *it;
+						if((*it)->subject->type=="lab") {
+							ttArr[(p/ROOM_SIZE)+1][p%ROOM_SIZE] = *it;
+						}
+						placedList.push_back(*it);
+						it=slotList.erase(it);
+						
+						// remove all soft constraint pos. higher than currently used by fromHere
+						(*fromHere)->sConst.erase(++curPosUsedIt,(*fromHere)->sConst.end());
+
+						// empty soft constraint of all in keptAside
+						clearSoftConstVec(keptAside);					
+					
+						list<Slots*>::iterator startFromHere; // the position that 'it' will get, to try and place next slot
+						bool itWasBegin=false;
+						if(it==slotList.begin()) {
+							itWasBegin=true;
+						}
+						else {
+							startFromHere=it;
+							startFromHere--;
+						}
+						cout<<" *"<<keptAside.size()<<","<<placedList.size()<<"* ";
+						slotList.splice(it,keptAside); // transfer all in keptAside to slotList in same order
+					
+						if(itWasBegin) {
+							it=slotList.begin();
+						}
+						else {
+							it=startFromHere;
+						}
+						// now don't do it++
+						finallyPlaced = true;
+						break; //higher
+					}
+					if(finallyPlaced) break;
+				}
+				if(!finallyPlaced) {
+					int clearPos = (*curPosUsedIt).pos;
+					ttArr[clearPos/ROOM_SIZE][clearPos%ROOM_SIZE] = NULL;
+				}
+				fromHereSlot=*fromHere;
+			}
+			if(!finallyPlaced ) {
+				if(fromHereSlot!=NULL) {
+					// restore keptAside to placedList
+					auto tempItP = fromHereSlot->sConst.end();
+					tempItP--;
+					int tp=(*tempItP).pos;
+					ttArr[tp/ROOM_SIZE][tp%ROOM_SIZE] = fromHereSlot;
+					addToTTarr(keptAside); // put all slots on keptAside back on ttArr
+					placedList.splice(placedList.begin(),keptAside);
+				}
+				it++;
+			}
 		}
-		if(isPlaced) {
-			int p = getBestPos(*it);
+		if(isPlaced) { // won't be executed if a slot gets finally placed but was not initially placed
+			sort((*it)->sConst.begin(),(*it)->sConst.end(),isSoftScoreLess);
+			auto tempItP = (*it)->sConst.end();
+			tempItP--;
+			int p=(*tempItP).pos;
 			ttArr[p/ROOM_SIZE][p%ROOM_SIZE] = *it;
 			if((*it)->subject->type=="lab") {
 				ttArr[(p/ROOM_SIZE)+1][p%ROOM_SIZE] = *it;
@@ -1862,9 +2122,14 @@ int timeTableFunctions() {
 	Batches::groupBatchesForLectures();
 	int a = Teachers::assignSubjects();
 	Teachers::assignBatches();
-	placeEm();
-	//generateTable();
+	if(ALGO_IN_USE==1) {
+		generateTable();		
+	}
+	else if(ALGO_IN_USE==2) {
+		placeEm();
+	}
 	if(a!=0) {
+		cout<<" a:"<<a;
 		return 102;
 	}
 	return 0;	// all went well
@@ -1893,18 +2158,26 @@ string dayJSON(string daySt,int s,int e) {
 	list<string> time[8];
 	for(int j=0;j<ROOM_SIZE;j++) {		
 		for(int i=s,ti=0;i<e;i++,ti++) {
-			/*
-			if(table[i][j] != 0) { // get a string of all the details of the slot together
-				slot = findSlot(table[i][j]);
-				if(slot == NULL) {
-					cout<<"no slot matched:"<<table[i][j];
-				}*/
-			if(ttArr[i][j] != NULL) { // get a string of all the details of the slot together
-				slot = ttArr[i][j];				
-				string temp;
-				temp=slot->batch->sem+","+slot->batch->name+","+
-					slot->subject->name+" "+slot->subject->type+","+slot->teacher->name+","+Rooms::nameFromIndex(j);
-				time[ti].push_back(temp);
+			if(ALGO_IN_USE==1) {	
+				if(table[i][j] != 0) { // get a string of all the details of the slot together
+					slot = findSlot(table[i][j]);
+					if(slot == NULL) {
+						cout<<"no slot matched:"<<table[i][j];
+					}
+					string temp;
+					temp=slot->batch->sem+","+slot->batch->name+","+
+						slot->subject->name+" "+slot->subject->type+","+slot->teacher->name+","+Rooms::nameFromIndex(j);
+					time[ti].push_back(temp);
+				}
+			}
+			else if(ALGO_IN_USE==2) {
+				if(ttArr[i][j] != NULL) { // get a string of all the details of the slot together
+					slot = ttArr[i][j];				
+					string temp;
+					temp=slot->batch->sem+","+slot->batch->name+","+
+						slot->subject->name+" "+slot->subject->type+","+slot->teacher->name+","+Rooms::nameFromIndex(j);
+					time[ti].push_back(temp);
+				}
 			}
 		}
 	}
@@ -1971,23 +2244,32 @@ string saturdayJSON() {
 	list<string> time[4];
 	for(int j=0;j<ROOM_SIZE;j++) {
 		for(int i=40,ti=0;i<44;i++,ti++) {
-			/*if(table[i][j] != 0) { // get a string of all the details of the slot together
-				slot = findSlot(table[i][j]);
-				if(slot == NULL) {
-					cout<<"no slot matched:"<<table[i][j];
-				}*/
-			if(ttArr[i][j] != NULL) { // get a string of all the details of the slot together
-				slot = ttArr[i][j];				
-				string temp;
-				temp=slot->batch->sem+","+slot->batch->name+","+
-					slot->subject->name+" "+slot->subject->type+","+slot->teacher->name+","+Rooms::nameFromIndex(j);
-				time[ti].push_back(temp);
+			if(ALGO_IN_USE==1) {
+				if(table[i][j] != 0) { // get a string of all the details of the slot together
+					slot = findSlot(table[i][j]);
+					if(slot == NULL) {
+						cout<<"no slot matched:"<<table[i][j];
+					}
+					string temp;
+					temp=slot->batch->sem+","+slot->batch->name+","+
+						slot->subject->name+" "+slot->subject->type+","+slot->teacher->name+","+Rooms::nameFromIndex(j);
+					time[ti].push_back(temp);
+				}
+			}
+			else if(ALGO_IN_USE==2) {
+				if(ttArr[i][j] != NULL) { // get a string of all the details of the slot together
+					slot = ttArr[i][j];				
+					string temp;
+					temp=slot->batch->sem+","+slot->batch->name+","+
+						slot->subject->name+" "+slot->subject->type+","+slot->teacher->name+","+Rooms::nameFromIndex(j);
+					time[ti].push_back(temp);
+				}	
 			}
 		}
 	}
 
 	string sEmpty = "";
-	string tmp;
+	string tmp="";
 	int m = maxSizeOfAnyList(time,4);
 	string day="";
 	day+="\"saturday\" : [ ";
@@ -2207,18 +2489,19 @@ int __cdecl main(void) {
 							MAX_ITER = iterNos;
 						}catch(exception &e) {
 							cout<<e.what();
-							MAX_ITER = 50;
+							MAX_ITER = 5000;
 						}
 					}
 				}
-				if(MAX_ITER < 0 || MAX_ITER >999) {					
-					MAX_ITER = 50;
+				if(MAX_ITER < 0 || MAX_ITER >9999) {					
+					MAX_ITER = 5000;
 				}
-			}
+		}
 			else {
-				MAX_ITER = 50;
+				MAX_ITER = 5000;
 			}
-			MAX_ITER = 1e4;
+			//cout<<"enter iter:";cin>>MAX_ITER;
+			MAX_ITER = 5000;
 			MAX_UNPLACED = 5;
 			// form a response	
 			string respJSON="{ \"status\": ";			
@@ -2344,7 +2627,7 @@ int main12() {
 	}
 	*/
 	cout<<endl;
-	MAX_ITER=5000;
+	MAX_ITER=50000;
 	placeEm();
 	//generateTable();
 	//result();

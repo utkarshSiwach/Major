@@ -2,8 +2,10 @@ Project setup guide
 
 Software required to build and run the application:
 1. XAMPP or any other php server
-2. c++ compiler  (visual studio preferred)
+2. visual studio 2012 (free edition will do to)
 3. mysql (comes with xampp, can be installed separately)
+4. mysql c++ connector 32bit
+5. boost libraries version 1_53 (smaller in size, latest will work too)
 
 Steps to set up the project:
 1. import new 3/timetable.sql file into your database preferably through phpmyadmin.
@@ -16,8 +18,20 @@ Steps to set up the project:
     to contain your mysql username instead of <root> and your mysql password instead of <ticket1>
     the default configuration of mysql looks like < $con=mysqli_connect("localhost","root","","timetable"); >
     
-3. Copy the source code folder to the c++ ide folder of your choice (vs2010 os other).
+3. Copy the source code folder to a new c++ project in the ide.
 
-4. Compile and run the c++ source code (c++ application forms the back end)
+4. Configure mysql c++ connector in visual studio 2012:
 
-5. Open the webpage, localhost://new 3/index.php to run the web user interface
+    check out the link : http://dev.mysql.com/doc/connector-cpp/en/connector-cpp-apps-windows-visual-studio.html
+    for detailed instructions on setting it up
+    
+    4.1: download mysql c++ connector 32bit (latest) and install
+    4.2 download boost libraries version 1_53 (smaller in size, latest will work too) and unzip on desktop
+    4.3 set up visual studio project properties
+    4.4 uncomment source1.cpp and do a testing of the mysql c++ connector, if the file executes then the
+        connector is properly installed.
+    4.5 change the project to release version
+
+5. Compile and run the c++ source code (c++ application forms the back end)
+
+6. Open the webpage, localhost://new 3/index.php to run the web user interface
